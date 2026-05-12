@@ -1,13 +1,31 @@
 Package: HSDPD
-Title: What the Package Does (One Line, Title Case)
+Type: Package
+Title: Heterogeneous Spatio-Temporal Dynamic Panel Data Models
 Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Authors@R: c(
+    person("Michele", "La Rocca", email = "larocca@unisa.it", role = c("aut", "cre")),
+    person("Maria Lucia", "Parrella", email = "mparrel@exaunisa.it", role = "aut"),
+    person("Francesco", "Giordano", email = "giordano@unisa.it", role = "ctb"),
+    person("Cira", "Perna", email = "perna@unisa.it", role = "ctb")
+    )
+Description: Provides tools for specifying, estimating, simulating, and diagnosing
+    heterogeneous spatio-temporal dynamic panel data models. The package includes
+    utilities for handling spatial dependence structures, temporal dynamics,
+    heterogeneous coefficients, and model output summaries.
+License: GPL-3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 8.0.0
 URL: https://github.com/mlarocca-git/HSDPD
 BugReports: https://github.com/mlarocca-git/HSDPD/issues
+Depends:
+    R (>= 4.1.0)
+Imports:
+    stats
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown
+Config/testthat/edition: 3
+VignetteBuilder: knitr
+
