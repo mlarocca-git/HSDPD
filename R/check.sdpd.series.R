@@ -1,48 +1,42 @@
-check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NULL, time.weights=NULL, vec.options=NULL) 
+check.sdpd.series <- function(series, XX=NULL, model=NULL, ww.index=NULL, ww.values=NULL,
+                              px.neighbors=NULL, px=NULL, lat=NULL, lon=NULL,  group=NULL,
+                              index.weights=NULL, time.weights=NULL) 
 {
-	## This function receives a multivariate (spatio-temporal) time series and a spatial weight matrix and some regressors,
-	## then it verifies if the structure of the dataset is correct
-	## series is a matrix of dimension (pp, nn) where pp is the number of univariate time series and nn the number of time observations
-	## WW is a spatial weight matrix of dimension (pp,pp)
-	## XX is an array of dim=c(kk, pp, nn) which includes the values for kk exogenous regressors. If kk=1 then XX is a matrix of dim=(nn,pp)
-
+  ## Questa funzione riceve un oggetto sdpd-series e un oaggetto sdpd-model (costruiti mediante le funzioni
+  ## build.sdpd.series e build.sdpd.model), oppure riceve le singole componenti di sdpd-series.
+  ## La funzione, quindi, controlla la consistenza dei componenti della serie con il modello e
+  ## restituisce gli oggetti "controllati" insieme alla lista di errori e warnings
+  
 	vec.error <- vec.warning <- character(20)
 	n.error <- n.warning <- 0
-	
+  model.obj <- model
+  ww.index.temp <- ww.values.temp <- NULL
+
 	## checking validity of series
 	if(is.list(series)){
+	  ## in questo caso tutti gli oggetti vengono passati attraverso una lista (procedura parallelizzata)
 	  dseries <- series$series
 	  px <- series$px
 	  lon <- series$lon
 	  lat <- series$lat
 	  group <- series$group
-    if(is.null(series$px.neighbors)){
-      n.error <- n.error + 1
-      vec.error[n.error] <- "\n The object px.neighbors is NULL!"
-    }
 	  px.neighbors <- series$px.neighbors
+	  ww.index.temp <- series$ww.index
+	  ww.values.temp <- series$ww.values
 	  if(is.null(XX))
 	    XX <- series$X
-	  if(is.null(WW))
-	    WW <- series$W
-    if(is.null(WW))
-      WW <- list(ww.index=series$ww.index, ww.values=series$ww.values)
-  }
-	else
+	}
+	else{
 	  dseries <- series
-
+	}
+	
 	if(is.matrix(dseries)|is.data.frame(dseries)){
 	  dseries <- as.matrix(dseries)
 	  nn <- dim(dseries)[2]
 		pp <- dim(dseries)[1]
-		tempo <- dimnames(dseries)[[2]]
-		if(is.null(dimnames(dseries)[[1]])){
-		  ## note that names of pixels should be numbers, so that they can be also managed by raster objects
-		  dimnames(dseries)[[1]] <- seq(1, pp)
-		}
-		if(is.null(dimnames(dseries)[[2]])){
-		  ## note that names of time units should be numbers (or dates), so that they can converted in Date-format
-		  dimnames(dseries)[[2]] <- tempo <- seq(1, nn)
+		if(is.null(dimnames(dseries)[[1]]) | is.null(dimnames(dseries)[[2]])){
+		  n.error <- n.error + 1
+		  vec.error[n.error] <- "\n Missing names for dseries (they should be numbers, for compatibility with plot functions)"
 		}
 		if(!is.null(time.weights)){
       if(length(time.weights)!=nn){
@@ -53,6 +47,8 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 		}
 		if(!is.null(index.weights)){
 		  if((is.matrix(index.weights) | is.data.frame(index.weights)) & dim(index.weights)[2]>1){
+		    if(is.null(dimnames(index.weights)[[1]]))
+		      dimnames(index.weights)[[1]] <- dimnames(dseries)[[1]]
 		    ix.weights <-  index.weights[dimnames(dseries)[[1]],2]
 		    names(ix.weights) <- index.weights[dimnames(dseries)[[1]],1]
 		    index.weights <- ix.weights
@@ -68,24 +64,19 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 	  n.error <- n.error + 1
 	  vec.error[n.error] <- "The series is not a matrix or dataframe"
 	}
-
+	
 	## checking validity of regressors
-	if(is.list(model)){
-	  model.obj <- model
-	  nomi.covariate <- names(model$beta_coeffs)[model$beta_coeffs]
+	if(is.null(model.obj)){
+	  n.error <- n.error + 1
+	  vec.error[n.error] <- "The model is missing. Please check."
+	  nomi.covariate <- NULL
 	}
 	else{
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "Something wrong with the model, which is not a list. Please check."
-	}
-	if(is.null(model.obj$kk))
 	  model.obj$kk <- sum(model.obj$beta_coeffs)
-	else if(model.obj$kk!=sum(model.obj$beta_coeffs)){
-	  n.warning <- n.warning + 1
-	  vec.warning[n.warning] <- "The passed model$kk value is not coerent with model$beta_coeffs. It has been corrected, please check."
+	  nomi.covariate <- names(model$beta_coeffs)[model$beta_coeffs]
 	}
 	if(is.null(XX)){
-	  if(model.obj$kk>0){
+	  if(!is.null(model.obj$kk) & model.obj$kk>0){
 	    n.error <- n.error + 1
 	    vec.error[n.error] <- paste("The model has exogenous coavariates, but there is no data passed in XX." )
 	  }
@@ -94,7 +85,6 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 	else if(model.obj$kk==0){
 	  n.warning <- n.warning + 1
 	  vec.warning[n.warning] <- "The model has no exogenous covariates, so the object passed in X has been ignored."
-	  
 	}
 	else if(is.matrix(XX)|is.data.frame(XX)){
 	  if(dim(XX)[2]!=nn){
@@ -110,10 +100,10 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 	  XX <- t(XX)
 	  n.warning <- n.warning + 1
 	  vec.warning[n.warning] <- "The regressor has been mean-centered."
-	  if(is.null(dimnames(XX)[[1]]))
-	    dimnames(XX)[[1]] <- dimnames(dseries)[[1]]
-	  if(is.null(dimnames(XX)[[2]]))
-	    dimnames(XX)[[2]] <- dimnames(dseries)[[2]]
+	  if(is.null(dimnames(XX)[[1]]) | is.null(dimnames(XX)[[2]])){
+	    n.error <- n.error + 1
+	    vec.error[n.error] <- "Dimnames for XX are missing."
+	  }
 	  kk <- 1
 	}
 	else if(is.array(XX) & length(dim(XX)==3)){
@@ -129,36 +119,19 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 	  XX <- aperm(XX, c(2,3,1))
 	  n.warning <- n.warning + 1
 	  vec.warning[n.warning] <- "The regressors have been mean-centered."
-	  if(is.null(dimnames(XX)[[3]]))
-	    dimnames(XX)[[3]] <- dimnames(dseries)[[2]]
-	  if(is.null(dimnames(XX)[[2]]))
-	    dimnames(XX)[[2]] <- dimnames(dseries)[[1]]
-	  if(is.null(dimnames(XX)[[1]])){
-	    if(dim(XX)[1]<length(nomi.covariate)){
-	      n.error <- n.error + 1
-	      vec.error[n.error] <- "Some covariates of the model are missing in the array X."
-	    }
-	    else if(dim(XX)[1]>length(nomi.covariate)){
-	      n.warning <- n.warning + 1
-	      vec.warning[n.warning] <- paste("There are more covariates in the array X than in the model. The first",
-	                                  length(nomi.covariate), "have been used.")
-	      XX <- XX[1:length(nomi.covariate),,]
-	      dimnames(XX)[[1]] <- nomi.covariate
-	    }
-	    else{
-	      n.warning <- n.warning + 1
-	      vec.warning[n.warning] <- paste("The array X has no named covariates. They have been used in the same order as in the passed model.")
-	      dimnames(XX)[[1]] <- nomi.covariate
-	    }
+	  if(is.null(dimnames(XX)[[1]]) | is.null(dimnames(XX)[[2]]) | is.null(dimnames(XX)[[3]])){
+	    n.error <- n.error + 1
+	    vec.error[n.error] <- paste("Dimnames for X are missing.")
 	  }
 	  kk <- dim(XX)[1]
 	}
 	else{
 	  n.error <- n.error + 1
-	  vec.error[n.error] <- "Something wrong with the regressor X. It must be a matrix (or list of matrices), a dataframe (or list of dataframes), or an array of order 3."
+	  vec.error[n.error] <- "Something wrong with regressor X. It must be a matrix (or list of matrices), a dataframe (or list of dataframes), or an array of order 3."
+	  kk <- 0
 	}
 	
-  if(model.obj$kk>0 & length(dim(XX))==3){
+	if(kk>0 & length(dim(XX))==3){
 	  covariate.temp <- dimnames(XX)[[1]] %in% nomi.covariate
 	  XX <- XX[covariate.temp,,]
 	  kk <- dim(XX)[1]
@@ -168,65 +141,35 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 	  }
 	}
 	if(kk==1 & length(dim(XX))==2){
-	  if(is.null(names(model.obj$beta_coeffs)))
-	    names(model.obj$beta_coeffs) <- "varX1"
+	  if(is.null(names(model.obj$beta_coeffs))){
+	    n.error <- n.error+1
+	    vec.error[n.error] <- "The name of the covariate in the model is missing."
+	  }
 	}
 	
 	## checking validity of the spatial matrix
-	if(is.null(WW)){
+	if(is.null(ww.index))
+	  ww.index <- ww.index.temp
+	if(is.null(ww.values))
+	  ww.values <- ww.values.temp
+	if(!is.null(model) & (is.null(ww.index) | is.null(ww.values))){
+	  ww.index <- model$ww.index
+	  ww.values <- model$ww.values
+	}
+	if(is.null(ww.index)|is.null(ww.values)){
 	  n.error <- n.error + 1
-	  vec.error[n.error] <- "The spatial matrix W is missing."
+	  vec.error[n.error] <- "The spatial matrix components are missing."
 	}
-	else if(is.list(WW)){
-	  if(is.null(WW$ww.index)|is.null(WW$ww.values)){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- "The spatial matrix W is missing or not complete."
-	  }
-	  else{
-	    WW.temp <- matrix(0, nrow=pp, ncol=pp)
-	    dimnames(WW.temp)[[1]] <- dimnames(WW.temp)[[2]] <- dimnames(dseries)[[1]]
-	    for(ii in 1:pp){
-	      indici <- as.character(WW$ww.index[ii,WW$ww.index[ii,]>0])
-	      WW.temp[ii, indici] <- WW$ww.values[ii,WW$ww.index[ii,]>0]
-	    }
-	    WW <- WW.temp
-	  }
-	}
-	else if(is.matrix(WW)){
-	  if(dim(WW)[1]!=pp){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- "The spatial matrix has not the correct number of rows."
-	  }
-	  if(dim(WW)[2]!=pp){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- "The spatial matrix has not the correct number of columns."
-	  }
-	  dimnames(WW)[[1]] <- dimnames(WW)[[2]] <- dimnames(dseries)[[1]]
-	}
-	else{
+	else if(is.null(dimnames(ww.index)[[1]]) | is.null(dimnames(ww.values)[[1]])){
 	  n.error = n.error+1
-	  vec.error[n.error] <- "Something wrong with the spatial matrix."
-	} 
-	
-	if(sum(is.na(WW))>0){
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "The spatial matrix cannot have NA values."
-	}
-	if(sum(diag(WW))!=0 & var(diag(WW))!=0){
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "The spatial matrix has not zero diagonal."
-	}
-	indici.w <- apply(abs(WW), 1, sum)==0
-	if(sum(indici.w)>0){
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "The spatial matrix has one (or more than one) zero-row(s)."
+	  vec.error[n.error] <- "Names for spatial matrix are missing"
 	}
 
 	## checking the missing values	
 	na <- sum(is.na(dseries))
 	if(na>0){
 	  n.error = n.error+1
-	  vec.error[n.error] <- "The series has NA values. They are replaced with the mean values"
+	  vec.error[n.error] <- "The series has NA values."
 	}
 	if(kk==0)
 	  naX <- 0
@@ -235,8 +178,8 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 	else if(kk>1)
 	  naX <- apply(XX, 1, FUN=function(x){sum(is.na(x))})
 	if(sum(naX)!=0){
-	  n.warning = n.warning+1
-	  vec.warning[n.warning] <- "There are some missing values in the covariates X."
+	  n.error = n.error+1
+	  vec.error[n.error] <- "There are some missing values in the covariates X."
 	  na <- c(na, naX)
 	  names(na) <- c("naY", paste("naX", seq(1,kk), sep=""))	  
 	}
@@ -247,17 +190,47 @@ check.sdpd.series <- function(series, WW=NULL, XX=NULL, model, index.weights=NUL
 	}
 	else time_effects <- numeric(nn)
 	
+	## checking lon, lat and group
+	if(!is.null(lon)){
+	  if(!is.vector(lon) | !is.numeric(lon) | is.null(names(lon))){
+	    n.error = n.error+1
+	    vec.error[n.error] <- "Something wrong with the vector of longitudes (missing names?)"
+	  }
+	}
+	if(!is.null(lat)){
+	  if(!is.vector(lat) | !is.numeric(lat) | is.null(names(lat))){
+	    n.error = n.error+1
+	    vec.error[n.error] <- "Something wrong with the vector of latitudes (missing names?)."
+	  }
+	}
+	if(!is.null(group)){
+	  if(length(dim(group))!=2 | dim(group)[2]!=2 | is.null(dimnames(group)[[1]])){
+	    n.error = n.error+1
+	    vec.error[n.error] <- "Something wrong with the object group (missing names?)."
+	  }
+	  else if(sum(c("COD", "LABEL") %in% dimnames(group)[[2]])<2){
+	    n.error = n.error+1
+	    vec.error[n.error] <- "L'oggetto groups deve contenere le colonne COD e LABEL"
+	  }
+	}
+	
 	if(model.obj$fixed_effects){
 	  mu <- apply(dseries, 1, mean)
 	}
 	else{
-	  mu <- numeric(pp)
+	  mu <- numeric(length(px))
 	  names(mu) <- dimnames(dseries)[[1]]
 	} 
 	
+	if(is.null(px.neighbors)){
+	  n.error <- n.error + 1
+	  vec.error[n.error] <- "\n The object px.neighbors is missing."
+	}
+	
+
 	## returning the structure of data
-	list(series=dseries, WW=WW, XX=XX, neighbours=px.neighbors, mu=mu, time_effects=time_effects, 
-	     nn=nn, pp=pp, kk=kk, na=na, model=model.obj, px=px, lat=lat, lon=lon, group=group,
-	     index.weights=index.weights, time.weights=time.weights, 
+	list(series=dseries, ww.index=ww.index, ww.values=ww.values, XX=XX, px.neighbors=px.neighbors, time_effects=time_effects, 
+	     nn=nn, pp=pp, kk=kk, na=na, px=px, lat=lat, lon=lon, group=group,
+	     index.weights=index.weights, time.weights=time.weights, mu=mu, 
 	     errors=vec.error[vec.error!=""], warnings=vec.warning[vec.warning!=""])
 }

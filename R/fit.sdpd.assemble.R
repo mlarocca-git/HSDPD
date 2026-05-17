@@ -13,7 +13,7 @@ fit.sdpd.assemble <- function(obj.stime){
     vec.LB <- p.adjust(vec.LB, method = "BY")
     vec.JB <- apply(obj.stime$resid, 1, fun.JBtest)
     vec.JB <- p.adjust(vec.JB, method = "BY")
-    eigenA <- round(rep(obj.stime$diagnostics[1], dim(obj.stime$resid)[1]), 2)
+    eigenA <- round(rep(obj.stime$diagnostics, dim(obj.stime$resid)[1]), 2)
     names(vec.mean) <- names(vec.sd) <- names(vec.LB) <- names(vec.JB) <- names(eigenA) <- dimnames(obj.stime$resid)[[1]]
 
     res <- list(px=px, lon=obj.stime$lon, lat=obj.stime$lat, group=data.frame(obj.stime$group)[indici,],
@@ -30,3 +30,4 @@ fit.sdpd.assemble <- function(obj.stime){
   }
   res
 }
+

@@ -1,62 +1,70 @@
-read.sdpd.series.from.dataframe <- function(px=NULL, latit=NULL, longit=NULL,
-                                          rry, rrXX=NULL, rrgroups=NULL, model,
-                                          ww.index, ww.values, px.neighbors){
+read.data.from.dataframe <- function(px, latit=NULL, longit=NULL,
+                                     rry, rrXX=NULL, rrgroups=NULL, model,
+                                     ww.index, ww.values, px.neighbors){
   ### estrazione e organizzazione dei dati input di formato matrix o dataframe, con identificazione dei valori mancanti
   ### restituisce la serie spazio-temporale, aggiungendo i vicini dei pixel selezionati, il vettore w_i dei pesi spaziali
   ### ed eventualmente la matrice X dei regressori
   
   if((!is.data.frame(rry)) & (!is.matrix(rry)))
-    return(list(error="L'argomento rry deve essere un dataframe oppure una matrice"))
-
+    return(list(error="L'argomento rry deve essere un dataframe oppure una matrice."))
+  
   rry <- as.matrix(rry)
   if(is.null(dimnames(rry)[[1]]))
-    dimnames(rry)[[1]] <- seq(1, dim(rry)[1])
+    return(error="I nomi di riga (=locations) di rry devono essere definiti.")
   if(is.null(px)){
     px <- dimnames(rry)[[1]]
   }
   indici <- dimnames(rry)[[1]]
-
-  lat <- which(dimnames(rry)[[2]]=="latitude")
-  lon <- which(dimnames(rry)[[2]]=="longitude")
-  temp.latit <- temp.longit <- NULL
+  
+  if(is.null(dimnames(rry)[[2]]))
+    lat <- lon <-  numeric(0)
+  else{
+    lat <- which(dimnames(rry)[[2]]=="latitude")
+    lon <- which(dimnames(rry)[[2]]=="longitude")
+  }
   if(length(lat)!=0 & length(lon)!=0){
-    temp.latit <- rry[as.character(px),lat]
-    temp.longit <- rry[as.character(px),lon]
-    names(temp.latit) <- names(temp.longit) <- px
+    latit <- rry[as.character(px),lat]
+    longit <- rry[as.character(px),lon]
+    names(latit) <- names(longit) <- px
     rry <- rry[,-c(lat, lon)]
   }
   else if(length(lat)!=0 | length(lon)!=0){
     rry <- rry[,-c(lat, lon)]
   }
   if(is.null(latit) | is.null(longit)){
-    latit <- temp.latit
-    longit <- temp.longit
+    latit <- longit <- NULL
   }
   else if(is.numeric(latit) & is.numeric(longit)){
     if(length(latit)==1 & length(longit)==1){
       temp.latit <- rry[as.character(px),latit]
       temp.longit <- rry[as.character(px),longit]
+      names(temp.latit) <- names(temp.longit) <- px
       rry <- rry[,-c(latit, longit)]
       latit <- temp.latit
       longit <- temp.longit
     }
-    else{
+    else if(length(latit)==dim(rry)[1] & length(longit)==dim(rry)[1]){
+      if(is.null(names(latit)))
+        names(latit) <- dimnames(rry)[[1]]
+      if(is.null(names(longit)))
+        names(longit) <- dimnames(rry)[[1]]
       latit <- latit[as.character(px)]
       longit <- longit[as.character(px)]
     } 
+    else return(list(error="I valori di latitudine e longitudine non hanno il formato o valore atteso"))
   }
   else return(list(error="I valori di latitudine e longitudine non hanno il formato o valore atteso"))
-
+  
   if(sum(as.character(px) %in% indici) < length(px))  
     return(list(error="Alcuni valori di px non sono contenuti nel dataframe rry"))
   
   ### derivazione serie dei vicini-stretti
   if(is.null(ww.index) | is.null(ww.values))
     return(list(error="La matrice spaziale non può essere costruita senza ww.index e ww.values..."))
-  if(is.data.frame(ww.index) | is.matrix(ww.index)){
+  if(is.matrix(ww.index)){
     vicini.stretti <- as.numeric(ww.index[as.character(px),])
-    vicini.stretti <- ifelse(vicini.stretti==0, NA, vicini.stretti)
-    vicini.stretti <-  na.exclude(unique(vicini.stretti))
+    vicini.stretti <- vicini.stretti[vicini.stretti>0]
+    vicini.stretti <-  unique(vicini.stretti)
     indici <- as.character(unique(c(px, vicini.stretti)))
     if(length(indici)>1)
       serie <- as.matrix(rry[indici,])
@@ -66,19 +74,20 @@ read.sdpd.series.from.dataframe <- function(px=NULL, latit=NULL, longit=NULL,
     }
     else return(list(error="Non vi sono dati nella matrice series"))
     tempo <- dimnames(serie)[[2]]
-    tt <- length(tempo)
+    tt <- dim(serie)[2]
     pp <- length(indici)
     n.px <- length(px)
   }
-  else  return(list(error="L'argomento ww.index deve essere un dataframe o matrice"))
-
+  else  return(list(error="L'argomento ww.index deve essere una matrice"))
+  
   ### derivazione dei gruppi
-  if(is.null(rrgroups)){
-    gruppi <- rep(1, nrow=pp)
-    labels <- rep("Common group", nrow=pp)
+  if(is.null(rrgroups) & is.null(model$groups)){
+    gruppi <- rep(1, length(px))
+    labels <- rep("group_1", length(px))
     gruppi <- cbind(COD=gruppi, LABEL=labels)
+    dimnames(gruppi)[[1]] <- px
   }
-  else{
+  else if(!is.null(rrgroups)){
     if((!is.data.frame(rrgroups)) & (!is.matrix(rrgroups)))
       return(list(error="L'argomento rrgroups deve essere un dataframe o matrice"))
     if(dim(rrgroups)[1] != dim(rry)[1])
@@ -87,20 +96,22 @@ read.sdpd.series.from.dataframe <- function(px=NULL, latit=NULL, longit=NULL,
       return(list(error="L'oggetto rrgroups deve contenere le colonne COD e LABEL"))
     gruppi <- as.matrix(rrgroups[as.character(px),c("COD", "LABEL")])
   }
+  else if(!is.null(model$groups))
+    gruppi <- as.matrix(model$groups[indici,])
   
   ### derivazione matrici dei pesi spaziali e dei punti vicini-lontani
-  if(is.data.frame(ww.values) | is.matrix(ww.values)){
-    ww.values <- as.matrix(ww.values[indici,])
-    ww.index <- as.matrix(ww.index[indici,])
+  if(is.matrix(ww.values)){
+    ww.values <- ww.values[indici,]
+    ww.index <- ww.index[indici,]
   }  
-  else  return(list(error="L'argomento ww.index deve essere un dataframe o matrice"))
-    
+  else  return(list(error="L'argomento ww.values deve essere una matrice."))
+  
   ### correzione indici e pesi della matrice spaziale e della matrice dei vicini, introducendo effetti boundary
-  if(is.null(px.neighbors$index))
-    return(list(error="La matrice spaziale non può essere costruita senza px.neighbors$index..."))
+  if(is.null(px.neighbors))
+    return(error="La matrice px.neighbours non può mancare.")
   indici.intorno <- unique(na.omit(as.vector(px.neighbors$index[as.character(px),])))
   neighbors <- as.matrix(px.neighbors$index[indici,])
-  rimanenti <- indici[!(as.numeric(indici) %in% px)]
+  rimanenti <- indici[!(indici %in% px)]
   for(riga in rimanenti){
     presenti <- ww.index[riga,]%in%px
     ww.index[riga, !presenti] <- 0
@@ -137,8 +148,9 @@ read.sdpd.series.from.dataframe <- function(px=NULL, latit=NULL, longit=NULL,
     seriesBoundary_second <- matrix(px.neighbors$seriesBoundary[as.character(indici.residui),], nrow=1)
     dimnames(seriesBoundary_second)[[1]] <- indici.residui
   }
+  
   seriesBoundary <- rbind(seriesBoundary_first, seriesBoundary_second)
-
+  
   ### creazione regressori
   if(is.null(rrXX) | sum(model$beta_coeffs)==0){
     kk <- 0
@@ -147,9 +159,8 @@ read.sdpd.series.from.dataframe <- function(px=NULL, latit=NULL, longit=NULL,
       return(list(error="Il modello prevede dei regressori esogeni, tuttavia l'argomento rrXX non è stato valorizzato"))
   }
   else kk <- sum(model$beta_coeffs)
-
+  varX <- names(model$beta_coeffs)[model$beta_coeffs]
   if(kk>0 & is.list(rrXX)){
-    varX <- names(model$beta_coeffs)[model$beta_coeffs]
     XX <- array(0, dim=c(kk, pp, tt))
     dimnames(XX) <- list(varX, indici, tempo) 
     for(rr in varX){
@@ -158,7 +169,7 @@ read.sdpd.series.from.dataframe <- function(px=NULL, latit=NULL, longit=NULL,
       }
       else if(rr %in% names(rrXX)){
         if(is.null(rrXX[[rr]]))
-          return(list(error="C'è un valore NULL nella lista di covariate rrXX"))
+          return(list(error="C'è un oggetto NULL nella lista di covariate rrXX"))
         XX[rr,,] <- as.matrix(rrXX[[rr]][indici,as.character(tempo)])
       }
       else
@@ -166,23 +177,12 @@ read.sdpd.series.from.dataframe <- function(px=NULL, latit=NULL, longit=NULL,
     }
   }
   else if(kk>0 & is.array(rrXX)){
-    varX <- names(model$beta_coeffs)[model$beta_coeffs]
-    XX <- rrXX[varX, indici, tempo] 
+    XX <- rrXX[varX, indici, ]
   }
   
   ### output
-  res <- list(series=serie, X=XX, ww.index=ww.index, ww.values=ww.values, px.neighbors=list(index=neighbors, seriesBoundary=seriesBoundary), 
+  res <- list(series=serie, X=XX, ww.index=ww.index[indici,], ww.values=ww.values[indici,], px.neighbors=list(index=neighbors, seriesBoundary=seriesBoundary), 
               px=px, lon=longit, lat=latit, group=gruppi)
-  
-  ## in case of simulations, we also return the true coefficients and the error series
-  coeffs <- model$coeffs
-  if(!is.null(coeffs)){
-    res$coeffs <- coeffs[indici,]
-  }
-  series.eps <- model$eps
-  if(!is.null(series.eps)){
-    res$eps <- model$eps[indici,]
-  }
-  
   res
 }
+

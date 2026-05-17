@@ -1,67 +1,31 @@
-check.sdpd.model <- function(res.fit=NULL, WW=NULL, coeffs=NULL, model=NULL, mus=NULL){
-
-  vec.error <- vec.warning <- character(20)
-  n.error <- n.warning <- 0
-  diagnostics <- NULL
-  nn <- pp <- kk <- mu <- NULL
-  model.obj <- model
-
+check.sdpd.model <- function(res.fit=NULL, model=NULL, ww.index=NULL, ww.values=NULL){
+  ## questa funzione permette di controllare la validità del modello o del modello stimato
+  ## valutando le condizioni di stazionarietà
+  
   if(!is.null(res.fit)){
-    if(is.null(WW)) WW <- res.fit$data$W
-    if(is.null(model)) model.obj <- res.fit$model
-    if(is.null(coeffs)) coeffs <- res.fit$coeff.hat
-    if(is.null(mus)) mu <- apply(res.fit$data$series, 1, mean)
-    nn <- dim(res.fit$fitted)[2]
+    coeffs <- res.fit$coeff.hat
+    if(!is.null(model))
+      cat("\nAttenzione....è stato valutato il modello ereditato da res.fit (l'oggetto model è stato quindi ignorato).")
+    model <- res.fit$model
   }
-  else if(!is.null(model)){
-    coeffs <- model$coeffs
-    model.obj <- model
-    WW <- model$WW
-    ## checking validity of the model
-    if(is.null(model.obj$lambda_coeffs)|length(model.obj$lambda_coeffs)>3|length(model.obj$lambda_coeffs)==0|sum(model.obj$lambda_coeffs)==0|(!is.logical(model.obj$lambda_coeffs))){
-      n.error <- n.error+1
-      vec.error[n.error] <- "There are problems with the lambda-coefficients in the model to be estimated."
-    }
-    else if(length(model.obj$lambda_coeffs)<3){
-      temp <- rep(FALSE, 3)
-      names(temp) <- c("lambda0", "lambda1", "lambda2")
-      if(is.null(names(model.obj$lambda_coeffs))){
-        temp[1:length(model.obj$lambda_coeffs)] <- model.obj$lambda_coeffs
-        model.obj$lambda_coeffs <- temp
-        n.warning <- n.warning+1
-        vec.warning[n.warning] <- "Some of the lambda-coefficients were missing, please check if now it is OK."
-      }
-      else{
-        temp[names(model.obj$lambda_coeffs)] <- model.obj$lambda_coeffs
-        model.obj$lambda_coeffs <- temp
-        n.warning <- n.warning+1
-        vec.warning[n.warning] <- "The names of some lambda-coefficients have been added, please check if now it is OK."
-      }
-    }
-    if(is.null(names(model.obj$lambda_coeffs)))
-      names(model.obj$lambda_coeffs) <- c("lambda0", "lambda1", "lambda2")
-    
-    if(is.null(model.obj$beta_coeffs)|length(model.obj$beta_coeffs)==0|sum(model.obj$beta_coeffs)==0|(!is.logical(model.obj$beta_coeffs))){
-      n.warning <- n.warning+1
-      vec.warning[n.warning] <- "The beta coefficients have been removed due to some problems, please check the model."
-      model.obj$beta_coeffs <- FALSE
-    }
-    
-    if(is.null(model.obj$fixed_effects) | (!is.logical(model.obj$fixed_effects)) | (!model.obj$fixed_effects)){
-      model.obj$fixed_effects <- FALSE
-      n.warning <- n.warning+1
-      vec.warning[n.warning] <- "The model has not the fixed effects...please check if this is OK."
-    }
-    
-    if(is.null(model.obj$time_effects)| !is.logical(model.obj$time_effects) | !(model.obj$time_effects))
-      model.obj$time_effects <- FALSE
+  else coeffs <- NULL
+  
+  if(!is.null(model)){
+    if(is.null(coeffs))
+      coeffs <- model$coeffs
+    px <- dimnames(coeffs)[[1]]
   }
+  
+  ## checking validity of the spatial matrix
+  if(is.null(ww.index) | is.null(ww.values)){
+    ww.index <- model$ww.index[px,]
+    ww.values <- model$ww.values[px,]
+  }
+  if(is.null(ww.index) | is.null(ww.values))
+    return(error="The spatial matrix components are missing")
   else{
-    n.error <- n.error + 1
-    vec.error[n.error] <- "There is no SDPD model to check"
+    WW <- build.spatial.matrix(ww.index=ww.index, ww.values=ww.values)
   }
-    
-  kk <- sum(model.obj$beta_coeffs)
   
   if(!is.null(coeffs)){
     pp <- dim(coeffs)[1]
@@ -93,10 +57,10 @@ check.sdpd.model <- function(res.fit=NULL, WW=NULL, coeffs=NULL, model=NULL, mus
       eigenA <- eigen(matrice1%*%matrice2)$values
     else
       eigenA <- rep(NA, pp)
-    diagnostics <- cbind(eigen1=Mod(vettore1), eigen2=Mod(vettore2), Mod.eigenA=Mod(eigenA))
-    dimnames(diagnostics)[[1]] <- dimnames(coeffs)[[1]]
+    diagnostics <- cbind(max.mod.eigen1=Mod(vettore1), max.mod.eigen2=Mod(vettore2), max.mod.eigenA=Mod(eigenA))
   }
-  ## restituzione risultati
-  list(model=model.obj, diagnostics=data.frame(diagnostics), coeffs=coeffs,
-       errors=vec.error[vec.error!=""], warnings=vec.warning[vec.warning!=""], nn=nn, pp=pp, kk=kk, mu=mu)
+  else cat("\nNo coefficients to evaluate....")
+  
+  ## output
+  list(diagnostics=data.frame(diagnostics))
 }

@@ -1,5 +1,6 @@
+
 fit.sdpd.series <- function(dseries, W, X.centr=NULL, model, coeff.hat, time_effects=NULL, 
-                            px.sim=NULL, resids=NULL, markovian=FALSE, num.steps=1) 
+                            px.sim=NULL, resids=NULL, markovian=TRUE, num.steps=10) 
 {
   beta.names <- names(model$beta_coeffs)[model$beta_coeffs]
   px <- dimnames(dseries)[[1]]
@@ -31,7 +32,11 @@ fit.sdpd.series <- function(dseries, W, X.centr=NULL, model, coeff.hat, time_eff
     px.sim <- as.character(px)
   else
     px.sim <- as.character(px.sim)
-
+  if(is.null(dimnames(dseries)))
+    dimnames(dseries)[[1]] <- seq(1, dim(dseries)[1])
+  if(!is.null(resids) & is.null(dimnames(resids)))
+    dimnames(resids)[[1]] <- dimnames(dseries)[[1]]
+  
   ## estimation results...
   if(!is.null(resids) & markovian){
     ## questo rappresenta il caso autoregressivo di tipo markoviano
@@ -41,7 +46,7 @@ fit.sdpd.series <- function(dseries, W, X.centr=NULL, model, coeff.hat, time_eff
     eps.star1 	<- tempI%*%(llk + llc + newresid)
     for(step in 1:num.steps){
       if(step>1)
-        dseries[,1] <- fitteds[,2]+eps.star1[px.sim,1]
+        dseries[,1] <- fitteds[,2]+eps.star1[,1]
       for(tt in 2:data$nn){
         fitteds[,tt] <- AA%*%(dseries)[,tt-1]
         dseries[px.sim,tt] <- fitteds[px.sim,tt] + eps.star1[px.sim,tt]
@@ -58,7 +63,7 @@ fit.sdpd.series <- function(dseries, W, X.centr=NULL, model, coeff.hat, time_eff
     dimnames(eps.star1) <- dimnames(dseries)
     for(step in 1:num.steps){
       if(step>1)
-        dseries[,1] <- fitteds[,2]
+        dseries[,1] <- fitteds[,2]+eps.star1[,1]
       for(tt in 2:data$nn){
         fitteds[,tt] <- AA%*%dseries[,tt]+BB%*%dseries[,tt-1]
         dseries[px.sim,tt] <- fitteds[px.sim,tt]+eps.star1[px.sim,tt]

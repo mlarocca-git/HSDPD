@@ -1,9 +1,9 @@
-read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL, 
-                    rry, rrXX=NULL, 
-                    rrgroups=NULL, label_groups=NULL,
-                    model,
-                    vec.options,
-                    type.w){
+read.data.from.raster <- function(px=NULL, latit=NULL, longit=NULL, 
+                                  rry, rrXX=NULL, 
+                                  rrgroups=NULL, label_groups=NULL,
+                                  model,
+                                  vec.options,
+                                  type.w="distance"){
   # Estrazione e costruzione serie spazio-temporale a partire da variabili in formato raster (mediante package terra)
   # Attenzione: l'argomento px deve essere in prima posizione, per poter parallelizzare la procedura
   # Se px="all"
@@ -11,7 +11,7 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
   # Se px=vettore (oppure se sono passati i vettori latit e longit)
   #   - costruisce la serie spazio-temporale per i soli pixel selezionati, aggiungendo il "bordo-vicini" dei pixel selezionati; 
   # Restituisce: i dati della endogena, il vettore w_i dei pesi spaziali e la matrice X dei regressori
-
+  
   if(is.null(px)){
     if(is.null(latit)|is.null(longit)){
       px <- "all"
@@ -60,7 +60,7 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
   dimnames(serie)[[2]] <- as.character(tempo)
   tt <- length(tempo)
   pp <- dim(serie)[1]
-
+  
   ### creazione regressori
   coordinate <- xyFromCell(rry, indici)
   if(is.null(rrXX)){
@@ -98,16 +98,16 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
           else n.reg <- n.reg-1
         }
         else if(!is.null(names(model$beta_coeffs))){
-            if(names(rrXX)[rr] %in% names(model$beta_coeffs)){
-              varX[n.reg] <- names(rrXX)[rr]
-              pXX <- cellFromXY(rrXX[[rr]], coordinate)
-              XX[n.reg,,] <- values(rrXX[[rr]])[pXX,]
-            }
-            else n.reg <- n.reg-1
-        }else{
+          if(names(rrXX)[rr] %in% names(model$beta_coeffs)){
             varX[n.reg] <- names(rrXX)[rr]
             pXX <- cellFromXY(rrXX[[rr]], coordinate)
             XX[n.reg,,] <- values(rrXX[[rr]])[pXX,]
+          }
+          else n.reg <- n.reg-1
+        }else{
+          varX[n.reg] <- names(rrXX)[rr]
+          pXX <- cellFromXY(rrXX[[rr]], coordinate)
+          XX[n.reg,,] <- values(rrXX[[rr]])[pXX,]
         }
       }
     }
@@ -128,7 +128,7 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
     gruppi <- data.frame(COD=gruppi, LABEL=labels)
   }
   dimnames(gruppi)[[1]] <- indici
-
+  
   ## eliminazione dei pixel con valori NA
   n.NAY <- apply(serie, 1, FUN=function(x){sum(is.na(x))})
   n.NAg <- is.na(gruppi[,1])
@@ -170,10 +170,6 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
       WW <- distance(x=coordinate1, y=coordinate2, lonlat=TRUE, pairwise=TRUE)
       WW <- ifelse(WW<0.01, 0, 1/WW)
     }
-    else if(type.w=="correlations"){
-      # WW <- cor(t(serie), use=NAcovs)
-      return(list(error="Matrice spaziale basata su correlations non ancora implementata..."))
-    }
     else return(list(error="The values set for type.w is not allowed."))
     punti.isolati <- logical(pp)
     names(punti.isolati) <- indici
@@ -209,7 +205,7 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
     da.mantenere <- da.mantenere & !punti.isolati
     n.NA <- cbind(n.NA, punti.isolati=punti.isolati)
   }
-
+  
   ## ridefinizione delle quantità al netto dei punti isolati e missing values
   indici <- as.character(indici[da.mantenere])
   serie <- serie[indici,]
@@ -223,7 +219,7 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
     return(list(error="Tutte le serie scelte hanno valori NA nella Y o nelle covariate X o nei dintorni."))
   if(!is.null(gruppi))
     gruppi <- gruppi[as.character(px),]
-
+  
   ### creazione matrice index con gli indici delle serie ricadenti nell'intorno dei vicini-lontani
   if(vec.options$px.neighbors>0){
     mat.intorno <- matrix(1, ncol=2*vec.options$px.neighbors+1, nrow=2*vec.options$px.neighbors+1)
@@ -255,10 +251,9 @@ read.sdpd.series.from.raster <- function(px=NULL, latit=NULL, longit=NULL,
     serie.intorno <- serie.intorno[as.character(esterni),]
     px.neighbors <- list(index=px.neighbors, seriesBoundary=serie.intorno)
   }
-
+  
   ### output
   res <- list(series=serie, X=XX, ww.index=ww.index, ww.values=ww.values, px.neighbors=px.neighbors, n.NA=data.frame(n.NA), 
-        px=px, lon=longit, lat=latit, group=gruppi)
+              px=px, lon=longit, lat=latit, group=gruppi)
   res
 }
-
