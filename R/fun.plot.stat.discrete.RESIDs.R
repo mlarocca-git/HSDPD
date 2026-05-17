@@ -5,8 +5,7 @@ fun.plot.stat.discrete.RESIDs <- function(
     significant.test = FALSE,
     BYadjusted = FALSE,
     alpha=NULL,
-    mid_value=0,
-    ...) {
+    mid_value=0,...) {
   # Compute summary statistics on residuals
   if (is.data.frame(df.results$resid)) {
     dati <- data.frame(
@@ -67,4 +66,5 @@ fun.plot.stat.discrete.RESIDs <- function(
   }
   res
 }
+
 
