@@ -1,259 +1,530 @@
-read.data.from.raster <- function(px=NULL, latit=NULL, longit=NULL, 
-                                  rry, rrXX=NULL, 
-                                  rrgroups=NULL, label_groups=NULL,
+#' Read SDP-D Data from Raster Objects
+#'
+#' Extracts and organizes SDP-D input data from raster objects.
+#'
+#' The function builds a spatio-temporal series from raster data, optionally
+#' extracts exogenous raster regressors, builds spatial-weight matrices, removes
+#' missing or isolated pixels, and constructs the neighbor-boundary structure
+#' used by local SDP-D estimation.
+#'
+#' @param px Optional vector. Raster cell identifiers to include. If `NULL` and
+#'   coordinates are not supplied, all cells are used.
+#' @param lat Optional numeric vector. Latitude coordinates used to select cells
+#'   when `px` is `NULL`.
+#' @param lon Optional numeric vector. Longitude coordinates used to select cells
+#'   when `px` is `NULL`.
+#' @param rr_y `SpatRaster`. Endogenous raster time series.
+#' @param rr_xx Optional `SpatRaster` or list of `SpatRaster` objects.
+#'   Exogenous raster regressors.
+#' @param rr_groups Optional `SpatRaster`. Raster object defining group
+#'   membership.
+#' @param label_groups Optional named vector. Group labels indexed by group code.
+#' @param model SDP-D model object, typically created with
+#'   [build_sdpd_model()].
+#' @param vec_options List. Vectorization options. Expected elements include
+#'   `px_core`, `px_neighbors`, and `na_rm`.
+#' @param type_w Character scalar. Type of spatial weights. Currently only
+#'   `"distance"` is supported.
+#'
+#' @return A list containing:
+#' \describe{
+#'   \item{series}{Endogenous series matrix.}
+#'   \item{xx}{Optional regressor array.}
+#'   \item{ww_index}{Spatial-neighbor index matrix.}
+#'   \item{ww_values}{Spatial-weight value matrix.}
+#'   \item{px_neighbors}{Pixel-neighbor structure with `index` and
+#'   `series_boundary`.}
+#'   \item{na_summary}{Data frame summarizing missing values and isolated
+#'   pixels.}
+#'   \item{px}{Selected pixel identifiers.}
+#'   \item{lon}{Longitude vector.}
+#'   \item{lat}{Latitude vector.}
+#'   \item{group}{Group data frame with columns `COD` and `LABEL`.}
+#' }
+#'
+#' If input validation fails, a list with an `error` element is returned.
+#'
+#' @details
+#' If `px = "all"`, all raster cells are considered and cells with invalid data
+#' are removed according to `vec_options$na_rm`.
+#'
+#' If `px` or coordinates are supplied, the function extracts only the selected
+#' pixels and adds the required core and boundary neighbors.
+#'
+#' The returned object follows the renamed package API: `xx`, `ww_index`,
+#' `ww_values`, `px_neighbors`, and `series_boundary`.
+#'
+#' @seealso [build_sdpd_series()], [read_data_from_dataframe()]
+#'
+#' @export
+read_data_from_raster <- function(px = NULL,
+                                  lat = NULL,
+                                  lon = NULL,
+                                  rr_y,
+                                  rr_xx = NULL,
+                                  rr_groups = NULL,
+                                  label_groups = NULL,
                                   model,
-                                  vec.options,
-                                  type.w="distance"){
-  # Estrazione e costruzione serie spazio-temporale a partire da variabili in formato raster (mediante package terra)
-  # Attenzione: l'argomento px deve essere in prima posizione, per poter parallelizzare la procedura
-  # Se px="all"
-  #   - costruisce la serie spazio-temporale completa, controllando tutti i pixel presenti ed eliminando quelli con valori missing
-  # Se px=vettore (oppure se sono passati i vettori latit e longit)
-  #   - costruisce la serie spazio-temporale per i soli pixel selezionati, aggiungendo il "bordo-vicini" dei pixel selezionati; 
-  # Restituisce: i dati della endogena, il vettore w_i dei pesi spaziali e la matrice X dei regressori
-  
-  if(is.null(px)){
-    if(is.null(latit)|is.null(longit)){
+                                  vec_options,
+                                  type_w = "distance") {
+  # Extract and build a spatio-temporal series from raster variables.
+  # The px argument is kept first so the function can be used in parallelized
+  # workflows.
+
+  if (is.null(px)) {
+    if (is.null(lat) || is.null(lon)) {
       px <- "all"
-    }
-    else{
-      if(length(latit)==length(longit))
-        n.px <- length(latit)
-      else
-        return(list(error="Latitudine e longitudine sono di lunghezza diversa."))
-      px <- cellFromXY(rry, cbind(longit, latit))
+    } else {
+      if (length(lat) == length(lon)) {
+        n_px <- length(lat)
+      } else {
+        return(list(error = "Latitude and longitude have different lengths."))
+      }
+
+      px <- terra::cellFromXY(rr_y, cbind(lon, lat))
     }
   }
-  if(is.numeric(px)){
-    n.px <- length(px)
-    temp <- xyFromCell(rry, px)
-    latit <- temp[,"y"]
-    longit <- temp[,"x"]
-    names(latit) <- names(longit) <- px
-  }
-  else if(is.character(px)){
-    n.px <- length(px)
-    if(px[1]=="all"){
-      px <- seq(1, dim(values(rry))[1])
-    }
-    else
+
+  if (is.numeric(px)) {
+    n_px <- length(px)
+
+    coordinates_temp <- terra::xyFromCell(rr_y, px)
+    lat <- coordinates_temp[, "y"]
+    lon <- coordinates_temp[, "x"]
+
+    names(lat) <- px
+    names(lon) <- px
+  } else if (is.character(px)) {
+    n_px <- length(px)
+
+    if (px[1] == "all") {
+      px <- seq_len(dim(terra::values(rr_y))[1])
+    } else {
       px <- as.numeric(px)
-    temp <- xyFromCell(rry, px)
-    latit <- temp[,"y"]
-    longit <- temp[,"x"]
-    names(latit) <- names(longit) <- px
+    }
+
+    coordinates_temp <- terra::xyFromCell(rr_y, px)
+    lat <- coordinates_temp[, "y"]
+    lon <- coordinates_temp[, "x"]
+
+    names(lat) <- px
+    names(lon) <- px
   }
-  if(n.px==0)
-    return(list(error="Non ci sono serie da analizzare."))
-  ### inizializzazione serie includenti i punti dei vicini stretti (=mat.core, che considera px.core cerchi intorno ad ogni pixel)
-  if(vec.options$px.core==0)
-    vicini.stretti <- ww.index <- ww.values <- px.neighbors <- NULL
-  else{
-    mat.core <- matrix(1, ncol=2*vec.options$px.core+1, nrow=2*vec.options$px.core+1)
-    mat.core[vec.options$px.core+1,vec.options$px.core+1]<- 0
-    vicini.stretti <- adjacent(rry, px, pairs=TRUE, directions=mat.core, include=TRUE, symmetrical=FALSE)    
+
+  if (n_px == 0) {
+    return(list(error = "There are no series to analyze."))
   }
-  indici <- na.exclude(unique(c(px, vicini.stretti)))
-  tempo <- time(rry)
-  serie <- values(rry)[indici,]
-  dimnames(serie)[[1]] <- indici
-  dimnames(serie)[[2]] <- as.character(tempo)
-  tt <- length(tempo)
-  pp <- dim(serie)[1]
-  
-  ### creazione regressori
-  coordinate <- xyFromCell(rry, indici)
-  if(is.null(rrXX)){
-    kk <- n.reg <- 0
-    XX <- varX <- NULL
-    if(sum(model$beta_coeffs)>0)
-      return(list(error="Il modello prevede dei regressori esogeni, tuttavia l'argomento rrXX non è stato valorizzato"))
+
+  # Initialize series including close neighbors.
+  if (vec_options$px_core == 0) {
+    close_neighbors <- NULL
+    ww_index <- NULL
+    ww_values <- NULL
+    px_neighbors <- NULL
+  } else {
+    core_matrix <- matrix(
+      1,
+      ncol = 2 * vec_options$px_core + 1,
+      nrow = 2 * vec_options$px_core + 1
+    )
+
+    core_matrix[
+      vec_options$px_core + 1,
+      vec_options$px_core + 1
+    ] <- 0
+
+    close_neighbors <- terra::adjacent(
+      rr_y,
+      px,
+      pairs = TRUE,
+      directions = core_matrix,
+      include = TRUE,
+      symmetrical = FALSE
+    )
   }
-  else if(!is.list(rrXX)){
-    kk <- n.reg <- 1
-    if(sum(model$beta_coeffs)>1)
-      return(list(error="Il modello prevede più di un regressore esogeno, tuttavia l'argomento rrXX non contiene variabili sufficienti"))
-  }
-  else if(is.list(rrXX)){
-    kk <- length(rrXX)
-    if(sum(model$beta_coeffs)>kk)
-      return(list(error=paste("Il modello prevede più di", kk, "regressori esogeni, tuttavia l'argomento rrXX non contiene variabili sufficienti")))
-    if(!is.null(names(model$beta_coeffs))){
-      if(sum(names(model$beta_coeffs)[model$beta_coeffs]%in%names(rrXX))<sum(model$beta_coeffs))
-        return(list(error="Il modello prevede alcuni regressori esogeni che non sono contenuti in rrXX"))
+
+  indices <- stats::na.exclude(unique(c(px, close_neighbors)))
+  time_index <- terra::time(rr_y)
+
+  series <- terra::values(rr_y)[indices, ]
+  dimnames(series)[[1]] <- indices
+  dimnames(series)[[2]] <- as.character(time_index)
+
+  tt <- length(time_index)
+  pp <- dim(series)[1]
+
+  # Create regressors.
+  coordinates <- terra::xyFromCell(rr_y, indices)
+
+  if (is.null(rr_xx)) {
+    kk <- 0
+    n_regressors <- 0
+    xx <- NULL
+    regressor_names <- NULL
+
+    if (sum(model$beta_coeffs) > 0) {
+      return(list(error = "The model includes exogenous regressors, but rr_xx was not supplied."))
+    }
+  } else if (!is.list(rr_xx)) {
+    kk <- 1
+    n_regressors <- 1
+
+    if (sum(model$beta_coeffs) > 1) {
+      return(list(error = "The model includes more than one exogenous regressor, but rr_xx does not contain enough variables."))
+    }
+
+    rr_xx <- list(rr_xx)
+  } else {
+    kk <- length(rr_xx)
+
+    if (sum(model$beta_coeffs) > kk) {
+      return(list(error = paste(
+        "The model includes more than",
+        kk,
+        "exogenous regressors, but rr_xx does not contain enough variables."
+      )))
+    }
+
+    if (!is.null(names(model$beta_coeffs))) {
+      required_regressors <- names(model$beta_coeffs)[model$beta_coeffs]
+
+      if (sum(required_regressors %in% names(rr_xx)) < sum(model$beta_coeffs)) {
+        return(list(error = "The model includes exogenous regressors that are not contained in rr_xx."))
+      }
     }
   }
-  if(kk>0){
-    n.reg <- 0
-    varX <- character(kk)
-    XX <- array(0, dim=c(kk, pp, tt))
-    for(rr in 1:dim(XX)[1]){
-      if(!is.null(rrXX[[rr]])){
-        n.reg <- n.reg+1
-        if(is.character(rrXX[[rr]])){
-          if(rrXX[[rr]]=="trend"){
-            XX[n.reg,,] <- matrix(rep(seq(1, tt)/tt, pp), byrow=TRUE, nrow=pp)
-            varX[n.reg] <- "trend"
+
+  if (kk > 0) {
+    n_regressors <- 0
+    regressor_names <- character(kk)
+    xx <- array(0, dim = c(kk, pp, tt))
+
+    for (regressor_index in seq_len(dim(xx)[1])) {
+      if (!is.null(rr_xx[[regressor_index]])) {
+        n_regressors <- n_regressors + 1
+
+        if (is.character(rr_xx[[regressor_index]])) {
+          if (rr_xx[[regressor_index]] == "trend") {
+            xx[n_regressors, , ] <- matrix(
+              rep(seq_len(tt) / tt, pp),
+              byrow = TRUE,
+              nrow = pp
+            )
+
+            regressor_names[n_regressors] <- "trend"
+          } else {
+            n_regressors <- n_regressors - 1
           }
-          else n.reg <- n.reg-1
-        }
-        else if(!is.null(names(model$beta_coeffs))){
-          if(names(rrXX)[rr] %in% names(model$beta_coeffs)){
-            varX[n.reg] <- names(rrXX)[rr]
-            pXX <- cellFromXY(rrXX[[rr]], coordinate)
-            XX[n.reg,,] <- values(rrXX[[rr]])[pXX,]
+        } else if (!is.null(names(model$beta_coeffs))) {
+          if (names(rr_xx)[regressor_index] %in% names(model$beta_coeffs)) {
+            regressor_names[n_regressors] <- names(rr_xx)[regressor_index]
+
+            p_xx <- terra::cellFromXY(rr_xx[[regressor_index]], coordinates)
+            xx[n_regressors, , ] <- terra::values(rr_xx[[regressor_index]])[p_xx, ]
+          } else {
+            n_regressors <- n_regressors - 1
           }
-          else n.reg <- n.reg-1
-        }else{
-          varX[n.reg] <- names(rrXX)[rr]
-          pXX <- cellFromXY(rrXX[[rr]], coordinate)
-          XX[n.reg,,] <- values(rrXX[[rr]])[pXX,]
+        } else {
+          regressor_names[n_regressors] <- names(rr_xx)[regressor_index]
+
+          p_xx <- terra::cellFromXY(rr_xx[[regressor_index]], coordinates)
+          xx[n_regressors, , ] <- terra::values(rr_xx[[regressor_index]])[p_xx, ]
         }
       }
     }
-    if(n.reg>0){
-      kk <- n.reg
-      dimnames(XX) <- list(varX, indici, as.character(tempo)) 
+
+    if (n_regressors > 0) {
+      kk <- n_regressors
+      xx <- xx[seq_len(kk), , , drop = FALSE]
+      regressor_names <- regressor_names[seq_len(kk)]
+
+      dimnames(xx) <- list(
+        regressor_names,
+        indices,
+        as.character(time_index)
+      )
     }
   }
-  ### definizione dei gruppi (in caso di alta dimensione, per frazionare la stima su sottogruppi)
-  if(is.null(rrgroups)){
-    gruppi <- rep(1, nrow=pp)
-    labels <- rep("Common group", nrow=pp)
-    gruppi <- cbind(COD=gruppi, LABEL=labels)
+
+  # Define groups.
+  if (is.null(rr_groups)) {
+    groups <- rep(1, pp)
+    group_labels <- rep("Common group", pp)
+
+    groups <- cbind(COD = groups, LABEL = group_labels)
+  } else {
+    groups <- terra::values(rr_groups)[indices, 1]
+    group_labels <- label_groups[as.character(groups)]
+
+    groups <- data.frame(
+      COD = groups,
+      LABEL = group_labels
+    )
   }
-  else{
-    gruppi <- values(rrgroups)[indici,1]
-    labels <- label_groups[as.character(gruppi)]
-    gruppi <- data.frame(COD=gruppi, LABEL=labels)
+
+  dimnames(groups)[[1]] <- indices
+
+  # Remove pixels with missing values.
+  n_na_y <- apply(series, 1, FUN = function(x) sum(is.na(x)))
+  n_na_group <- is.na(groups[, 1])
+  n_na_group_xor <- xor(n_na_y > 0, n_na_group > 0)
+
+  if (kk > 1) {
+    n_na_x <- t(apply(xx, c(1, 2), FUN = function(x) sum(is.na(x))))
+    n_na_xor <- apply(n_na_x, 2, FUN = function(x, y) xor(x > 0, y > 0), y = n_na_y)
+    total_na_x <- apply(n_na_x, 1, sum)
+  } else if (kk == 1) {
+    n_na_x <- total_na_x <- apply(xx, 1, FUN = function(x) sum(is.na(x)))
+    n_na_xor <- xor(n_na_x > 0, n_na_y > 0)
+  } else {
+    n_na_x <- n_na_xor <- total_na_x <- rep(0, pp)
   }
-  dimnames(gruppi)[[1]] <- indici
-  
-  ## eliminazione dei pixel con valori NA
-  n.NAY <- apply(serie, 1, FUN=function(x){sum(is.na(x))})
-  n.NAg <- is.na(gruppi[,1])
-  n.NAgor <- xor(n.NAY>0,n.NAg>0)
-  if(kk>1){
-    n.NAX <- t(apply(XX, c(1,2), FUN=function(x){sum(is.na(x))}))
-    n.NAxor <- apply(n.NAX, 2, FUN=function(x,y){xor(x>0,y>0)}, y=n.NAY)
-    tot.NAX <- apply(n.NAX, 1, sum)
+
+  if (vec_options$na_rm) {
+    keep_indices <- n_na_y == 0 & n_na_group == 0 & total_na_x == 0
+  } else {
+    keep_indices <- n_na_y < tt & n_na_group == 0 & total_na_x < tt
   }
-  else if(kk==1){
-    n.NAX <- tot.NAX <- apply(XX, 1, FUN=function(x){sum(is.na(x))})
-    n.NAxor <- xor(n.NAX>0,n.NAY>0)
+
+  na_indices <- indices[!keep_indices]
+
+  if (sum(keep_indices) == 0) {
+    return(list(error = "There are no series to analyze."))
   }
-  else n.NAX <- n.NAxor <- tot.NAX <- rep(0, pp)
-  if(vec.options$na.rm)
-    da.mantenere <- n.NAY==0 & n.NAg==0 & tot.NAX==0
-  else
-    da.mantenere <- n.NAY<tt & n.NAg==0  & tot.NAX<tt
-  indici.na <- indici[!da.mantenere]
-  if(sum(da.mantenere)==0)
-    return(list(error="Non ci sono serie da analizzare."))
-  varY <- varnames(rry)[1]
-  if(kk>0){
-    n.NA <- cbind(coordinate, n.NAY, n.NAX, n.NAxor, n.NAgor)
-    dimnames(n.NA) <- list(indici, c("lat", "lon", varY, varX, paste(varY, "XOR", varX, sep=""), paste(varY, "XORGroups")))
+
+  y_name <- terra::varnames(rr_y)[1]
+
+  if (kk > 0) {
+    na_summary <- cbind(
+      coordinates,
+      n_na_y,
+      n_na_x,
+      n_na_xor,
+      n_na_group_xor
+    )
+
+    dimnames(na_summary) <- list(
+      indices,
+      c(
+        "lat",
+        "lon",
+        y_name,
+        regressor_names,
+        paste(y_name, "XOR", regressor_names, sep = ""),
+        paste(y_name, "XORGroups")
+      )
+    )
+  } else {
+    na_summary <- cbind(
+      coordinates,
+      n_na_y,
+      n_na_group_xor
+    )
+
+    dimnames(na_summary) <- list(
+      indices,
+      c("lat", "lon", y_name, paste(y_name, "XORGroups"))
+    )
   }
-  else if(kk==0){
-    n.NA <- cbind(coordinate, n.NAY, n.NAgor)
-    dimnames(n.NA) <- list(indici, c("lat", "lon", varY, paste(varY, "XORGroups")))
-  }
-  
-  ### creazione dei vettori dei pesi spaziali w_i e verifica dei punti isolati
-  if(vec.options$px.core>0){
-    coordinate1 <- xyFromCell(rry, vicini.stretti[,1])
-    coordinate2 <- xyFromCell(rry, vicini.stretti[,2])
-    ww.index <- ww.values <- matrix(0, nrow=sum(da.mantenere), ncol=(2*vec.options$px.core+1)^2)
-    dimnames(ww.index)[[1]] <- dimnames(ww.values)[[1]] <- indici[da.mantenere]
-    if(type.w=="distance"){
-      WW <- distance(x=coordinate1, y=coordinate2, lonlat=TRUE, pairwise=TRUE)
-      WW <- ifelse(WW<0.01, 0, 1/WW)
+
+  # Create spatial-weight vectors and check isolated points.
+  if (vec_options$px_core > 0) {
+    coordinates_1 <- terra::xyFromCell(rr_y, close_neighbors[, 1])
+    coordinates_2 <- terra::xyFromCell(rr_y, close_neighbors[, 2])
+
+    ww_index <- ww_values <- matrix(
+      0,
+      nrow = sum(keep_indices),
+      ncol = (2 * vec_options$px_core + 1)^2
+    )
+
+    dimnames(ww_index)[[1]] <- indimnames(ww_values)[[1]] <- indices[keep_indices]
+
+    if (type_w == "distance") {
+      ww <- terra::distance(
+        x = coordinates_1,
+        y = coordinates_2,
+        lonlat = TRUE,
+        pairwise = TRUE
+      )
+
+      ww <- ifelse(ww < 0.01, 0, 1 / ww)
+    } else {
+      return(list(error = "The value set for type_w is not allowed."))
     }
-    else return(list(error="The values set for type.w is not allowed."))
-    punti.isolati <- logical(pp)
-    names(punti.isolati) <- indici
-    for(ii in 1:sum(da.mantenere)){
-      pixel <- indici[da.mantenere][ii]
-      # controlliamo prima nella prima colonna di vicini.stretti
-      ww1 <- vicini.stretti[,1]==pixel
-      ww2 <- vicini.stretti[ww1,2]
-      to.exclude <- ww2 %in% indici.na
-      ww2 <- ww2[!to.exclude]
-      if(sum(ww1)-sum(to.exclude)>0){
-        ww.index[ii,1:length(ww2)] <- ww2
-        ww.values[ii,1:length(ww2)] <- WW[ww1][!to.exclude]
-      }
-      else{
-        # per completezza, controlliamo anche eventuali punti aggiuntivi nella seconda colonna di vicini.stretti
-        ww1 <- vicini.stretti[,2]==pixel
-        ww2 <- vicini.stretti[ww1,1]
-        to.exclude <- ww2 %in% indici.na
-        ww2 <- ww2[!to.exclude]
-        if(sum(ww1)-sum(to.exclude)>0){
-          ww.index[ii,1:length(ww2)] <- ww2
-          ww.values[ii,1:length(ww2)] <- WW[ww1][!to.exclude]
+
+    isolated_points <- logical(pp)
+    names(isolated_points) <- indices
+
+    for (ii in seq_len(sum(keep_indices))) {
+      pixel <- indices[keep_indices][ii]
+
+      # First check the first column of close_neighbors.
+      ww_1 <- close_neighbors[, 1] == pixel
+      ww_2 <- close_neighbors[ww_1, 2]
+
+      to_exclude <- ww_2 %in% na_indices
+      ww_2 <- ww_2[!to_exclude]
+
+      if (sum(ww_1) - sum(to_exclude) > 0) {
+        ww_index[ii, seq_along(ww_2)] <- ww_2
+        ww_values[ii, seq_along(ww_2)] <- ww[ww_1][!to_exclude]
+      } else {
+        # Also check additional points in the second column of close_neighbors.
+        ww_1 <- close_neighbors[, 2] == pixel
+        ww_2 <- close_neighbors[ww_1, 1]
+
+        to_exclude <- ww_2 %in% na_indices
+        ww_2 <- ww_2[!to_exclude]
+
+        if (sum(ww_1) - sum(to_exclude) > 0) {
+          ww_index[ii, seq_along(ww_2)] <- ww_2
+          ww_values[ii, seq_along(ww_2)] <- ww[ww_1][!to_exclude]
         }
       }
-      if(sum(abs(ww.values[ii,]))>0)
-        ww.values[ii,] <- ww.values[ii,]/sum(abs(ww.values[ii,]))
-      else
-        punti.isolati[da.mantenere][ii] <- TRUE
+
+      if (sum(abs(ww_values[ii, ])) > 0) {
+        ww_values[ii, ] <- ww_values[ii, ] / sum(abs(ww_values[ii, ]))
+      } else {
+        isolated_points[keep_indices][ii] <- TRUE
+      }
     }
-    ww.values <- ww.values[!(punti.isolati[da.mantenere]),]
-    ww.index <- ww.index[!(punti.isolati[da.mantenere]),]
-    da.mantenere <- da.mantenere & !punti.isolati
-    n.NA <- cbind(n.NA, punti.isolati=punti.isolati)
+
+    ww_values <- ww_values[!(isolated_points[keep_indices]), , drop = FALSE]
+    ww_index <- ww_index[!(isolated_points[keep_indices]), , drop = FALSE]
+
+    keep_indices <- keep_indices & !isolated_points
+    na_summary <- cbind(na_summary, isolated_points = isolated_points)
   }
-  
-  ## ridefinizione delle quantità al netto dei punti isolati e missing values
-  indici <- as.character(indici[da.mantenere])
-  serie <- serie[indici,]
-  XX <- XX[,indici,]
-  i.px <- as.character(px) %in% indici
-  latit <- latit[i.px]
-  longit <- longit[i.px]
-  px <- px[i.px]
-  n.px <- length(px)
-  if(n.px==0)
-    return(list(error="Tutte le serie scelte hanno valori NA nella Y o nelle covariate X o nei dintorni."))
-  if(!is.null(gruppi))
-    gruppi <- gruppi[as.character(px),]
-  
-  ### creazione matrice index con gli indici delle serie ricadenti nell'intorno dei vicini-lontani
-  if(vec.options$px.neighbors>0){
-    mat.intorno <- matrix(1, ncol=2*vec.options$px.neighbors+1, nrow=2*vec.options$px.neighbors+1)
-    mat.intorno[vec.options$px.neighbors+1,vec.options$px.neighbors+1]<- 0
-    px.neighbors <- matrix(NA, nrow=length(indici), ncol=(2*vec.options$px.neighbors+1)^2-1)
-    dimnames(px.neighbors)[[1]] <- indici
-    for(ii in 1:n.px){
-      temp <- adjacent(rry, cells=px[ii], directions=mat.intorno)
-      temp <- temp[temp>0]
-      px.neighbors[as.character(px[ii]), 1:length(temp)] <- temp
-    }
-    indici.intorno <- na.exclude(unique(as.vector(px.neighbors)))
-    rimanenti <- indici[!(as.numeric(indici) %in% px)]
-    for(ii in rimanenti){
-      temp <- adjacent(rry, cells=as.numeric(ii), directions=mat.intorno)
-      temp <- temp[temp>0]
-      temp <- temp[temp %in% indici.intorno]
-      px.neighbors[as.character(ii), 1:length(temp)] <- temp
-    }
-    ## controllo se alcune serie dell'intorno dei vicini-lontani includono NA, in tal caso le elimino dall'intorno
-    serie.intorno <- values(rry)[indici.intorno,]
-    dimnames(serie.intorno)[[1]] <- indici.intorno
-    dimnames(serie.intorno)[[2]] <-  as.character(tempo)
-    na.intorno <- apply(serie.intorno, 1, FUN=function(x){sum(is.na(x))})
-    px.neighbors <- t(apply(px.neighbors, 1, FUN=function(x, ind){ifelse(x%in%ind, NA, x)}, ind=indici.intorno[na.intorno>0]))
-    ## infine, estraggo la serie dei vicini-lontani, che sarà utilizzata per il calcolo delle covarianze
-    indici.intorno <- na.exclude(unique(as.vector(px.neighbors)))
-    esterni <- indici.intorno[!(indici.intorno %in% indici)]
-    serie.intorno <- serie.intorno[as.character(esterni),]
-    px.neighbors <- list(index=px.neighbors, seriesBoundary=serie.intorno)
+
+  # Redefine objects after removing isolated points and missing values.
+  indices <- as.character(indices[keep_indices])
+
+  series <- series[indices, , drop = FALSE]
+
+  if (!is.null(xx)) {
+    xx <- xx[, indices, , drop = FALSE]
   }
-  
-  ### output
-  res <- list(series=serie, X=XX, ww.index=ww.index, ww.values=ww.values, px.neighbors=px.neighbors, n.NA=data.frame(n.NA), 
-              px=px, lon=longit, lat=latit, group=gruppi)
-  res
+
+  selected_px <- as.character(px) %in% indices
+
+  lat <- lat[selected_px]
+  lon <- lon[selected_px]
+  px <- px[selected_px]
+
+  n_px <- length(px)
+
+  if (n_px == 0) {
+    return(list(error = "All selected series have NA values in Y, covariates, or neighborhoods."))
+  }
+
+  if (!is.null(groups)) {
+    groups <- groups[as.character(px), , drop = FALSE]
+  }
+
+  # Create index matrix for far-neighbor series.
+  if (vec_options$px_neighbors > 0) {
+    neighborhood_matrix <- matrix(
+      1,
+      ncol = 2 * vec_options$px_neighbors + 1,
+      nrow = 2 * vec_options$px_neighbors + 1
+    )
+
+    neighborhood_matrix[
+      vec_options$px_neighbors + 1,
+      vec_options$px_neighbors + 1
+    ] <- 0
+
+    px_neighbors_index <- matrix(
+      NA,
+      nrow = length(indices),
+      ncol = (2 * vec_options$px_neighbors + 1)^2 - 1
+    )
+
+    dimnames(px_neighbors_index)[[1]] <- indices
+
+    for (ii in seq_len(n_px)) {
+      temp_neighbors <- terra::adjacent(
+        rr_y,
+        cells = px[ii],
+        directions = neighborhood_matrix
+      )
+
+      temp_neighbors <- temp_neighbors[temp_neighbors > 0]
+
+      px_neighbors_index[
+        as.character(px[ii]),
+        seq_along(temp_neighbors)
+      ] <- temp_neighbors
+    }
+
+    remaining_indices <- indices[!(as.numeric(indices) %in% px)]
+
+    for (ii in remaining_indices) {
+      temp_neighbors <- terra::adjacent(
+        rr_y,
+        cells = as.numeric(ii),
+        directions = neighborhood_matrix
+      )
+
+      temp_neighbors <- temp_neighbors[temp_neighbors > 0]
+      temp_neighbors <- temp_neighbors[temp_neighbors %in% neighbor_indices]
+
+      px_neighbors_index[
+        as.character(ii),
+        seq_along(temp_neighbors)
+      ] <- temp_neighbors
+    }
+
+    # Remove far-neighbor series with NA values.
+    neighbor_indices <- stats::na.exclude(unique(as.vector(px_neighbors_index)))
+
+    neighbor_series <- terra::values(rr_y)[neighbor_indices, ]
+    dimnames(neighbor_series)[[1]] <- neighbor_indices
+    dimnames(neighbor_series)[[2]] <- as.character(time_index)
+
+    neighbor_na <- apply(neighbor_series, 1, FUN = function(x) sum(is.na(x)))
+
+    px_neighbors_index <- t(apply(
+      px_neighbors_index,
+      1,
+      FUN = function(x, ind) {
+        ifelse(x %in% ind, NA, x)
+      },
+      ind = neighbor_indices[neighbor_na > 0]
+    ))
+
+    # Extract far-neighbor boundary series for covariance computation.
+    neighbor_indices <- stats::na.exclude(unique(as.vector(px_neighbors_index)))
+
+    external_indices <- neighbor_indices[
+      !(neighbor_indices %in% indices)
+    ]
+
+    neighbor_series <- neighbor_series[as.character(external_indices), , drop = FALSE]
+
+    px_neighbors <- list(
+      index = px_neighbors_index,
+      series_boundary = neighbor_series
+    )
+  } else {
+    px_neighbors <- NULL
+  }
+
+  # Output.
+  list(
+    series = series,
+    xx = xx,
+    ww_index = ww_index,
+    ww_values = ww_values,
+    px_neighbors = px_neighbors,
+    na_summary = data.frame(na_summary),
+    px = px,
+    lon = lon,
+    lat = lat,
+    group = groups
+  )
 }
+
+
+

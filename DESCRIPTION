@@ -8,24 +8,31 @@ Authors@R: c(
     person("Francesco", "Giordano", email = "giordano@unisa.it", role = "ctb"),
     person("Cira", "Perna", email = "perna@unisa.it", role = "ctb")
     )
-Description: Provides tools for specifying, estimating, simulating, and diagnosing
-    heterogeneous spatio-temporal dynamic panel data models. The package includes
-    utilities for handling spatial dependence structures, temporal dynamics,
-    heterogeneous coefficients, and model output summaries.
-License: GPL-3
+Description: Tools for building, simulating, estimating, testing, and plotting
+    hierarchical spatial dynamic panel data models. The package provides
+    utilities for constructing SDP-D model objects, reading spatio-temporal
+    data from data frames or raster objects, fitting model parameters, running
+    bootstrap-based tests, and producing diagnostic plots.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 8.0.0
-URL: https://github.com/mlarocca-git/HSDPD
-BugReports: https://github.com/mlarocca-git/HSDPD/issues
 Depends:
     R (>= 4.1.0)
 Imports:
-    stats
+    dplyr,
+    ggplot2,
+    graphics,
+    grDevices,
+    purrr,
+    stats,
+    terra,
+    tibble,
+    tidyr
 Suggests:
     testthat (>= 3.0.0),
     knitr,
-    rmarkdown
+    rmarkdown,
+    pkgdown
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-
+Config/roxygen2/version: 8.0.0

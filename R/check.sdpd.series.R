@@ -1,236 +1,405 @@
-check.sdpd.series <- function(series, XX=NULL, model=NULL, ww.index=NULL, ww.values=NULL,
-                              px.neighbors=NULL, px=NULL, lat=NULL, lon=NULL,  group=NULL,
-                              index.weights=NULL, time.weights=NULL) 
-{
-  ## Questa funzione riceve un oggetto sdpd-series e un oaggetto sdpd-model (costruiti mediante le funzioni
-  ## build.sdpd.series e build.sdpd.model), oppure riceve le singole componenti di sdpd-series.
-  ## La funzione, quindi, controlla la consistenza dei componenti della serie con il modello e
-  ## restituisce gli oggetti "controllati" insieme alla lista di errori e warnings
-  
-	vec.error <- vec.warning <- character(20)
-	n.error <- n.warning <- 0
-  model.obj <- model
-  ww.index.temp <- ww.values.temp <- NULL
+#' Check an SDP-D Series Object
+#'
+#' Checks the consistency of an SDP-D series object with an SDP-D model object.
+#'
+#' The function receives either an `sdpd_series` object and an `sdpd_model`
+#' object, typically created with [build_sdpd_series()] and
+#' [build_sdpd_model()], or the individual components of an SDP-D series.
+#'
+#' It validates the data series, regressors, spatial matrix components,
+#' coordinates, groups, weights, fixed effects, and time effects. It returns the
+#' checked objects together with vectors of errors and warnings.
+#'
+#' @param series Matrix, data frame, or list. The endogenous series, or an
+#'   `sdpd_series`-like list containing the series components.
+#' @param xx Optional matrix, data frame, or three-dimensional array. Regressor
+#'   data. Defaults to `NULL`.
+#' @param model Optional SDP-D model object, typically created with
+#'   [build_sdpd_model()].
+#' @param ww_index Optional matrix. Spatial-neighbor index matrix.
+#' @param ww_values Optional matrix. Spatial-weight value matrix.
+#' @param px_neighbors Optional object defining pixel or proximity neighbors.
+#' @param px Optional object defining the spatial units or pixel structure.
+#' @param lat Optional named numeric vector of latitude coordinates.
+#' @param lon Optional named numeric vector of longitude coordinates.
+#' @param group Optional matrix or data frame defining regional groups. It must
+#'   contain two columns named `COD` and `LABEL`.
+#' @param index_weights Optional vector, matrix, or data frame of spatial-unit
+#'   weights.
+#' @param time_weights Optional vector of time weights.
+#'
+#' @return A list containing the checked series components:
+#' \describe{
+#'   \item{series}{Checked and possibly transformed endogenous series.}
+#'   \item{ww_index}{Spatial-neighbor index matrix.}
+#'   \item{ww_values}{Spatial-weight value matrix.}
+#'   \item{xx}{Checked and possibly transformed regressors.}
+#'   \item{px_neighbors}{Pixel or proximity-neighbor information.}
+#'   \item{time_effects}{Estimated or empty time effects.}
+#'   \item{nn}{Number of time observations.}
+#'   \item{pp}{Number of spatial units.}
+#'   \item{kk}{Number of covariates.}
+#'   \item{na}{Missing-value counts.}
+#'   \item{px}{Spatial-unit or pixel structure.}
+#'   \item{lat}{Latitude vector.}
+#'   \item{lon}{Longitude vector.}
+#'   \item{group}{Group structure.}
+#'   \item{index_weights}{Spatial-unit weights.}
+#'   \item{time_weights}{Time weights.}
+#'   \item{mu}{Fixed-effect means.}
+#'   \item{errors}{Character vector of validation errors.}
+#'   \item{warnings}{Character vector of validation warnings.}
+#' }
+#'
+#' @details
+#' If `series` is a list, the function assumes that all series components are
+#' passed through that list. This supports parallelized workflows.
+#'
+#' If the model includes time effects, the function removes time means from the
+#' series and stores them in `time_effects`.
+#'
+#' If the model includes fixed effects, the function computes spatial-unit means
+#' and stores them in `mu`.
+#'
+#' Regressors are mean-centered when supplied.
+#'
+#' @examples
+#' checked_series <- check_sdpd_series(
+#'   series = series,
+#'   model = model
+#' )
+#'
+#' checked_series <- check_sdpd_series(
+#'   series = y,
+#'   xx = x,
+#'   model = model,
+#'   ww_index = model$ww_index,
+#'   ww_values = model$ww_values,
+#'   px_neighbors = model$px_neighbors
+#' )
+#'
+#' @seealso [build_sdpd_series()], [build_sdpd_model()]
+#'
+#' @export
+check_sdpd_series <- function(series,
+                              xx = NULL,
+                              model = NULL,
+                              ww_index = NULL,
+                              ww_values = NULL,
+                              px_neighbors = NULL,
+                              px = NULL,
+                              lat = NULL,
+                              lon = NULL,
+                              group = NULL,
+                              index_weights = NULL,
+                              time_weights = NULL) {
 
-	## checking validity of series
-	if(is.list(series)){
-	  ## in questo caso tutti gli oggetti vengono passati attraverso una lista (procedura parallelizzata)
-	  dseries <- series$series
-	  px <- series$px
-	  lon <- series$lon
-	  lat <- series$lat
-	  group <- series$group
-	  px.neighbors <- series$px.neighbors
-	  ww.index.temp <- series$ww.index
-	  ww.values.temp <- series$ww.values
-	  if(is.null(XX))
-	    XX <- series$X
-	}
-	else{
-	  dseries <- series
-	}
-	
-	if(is.matrix(dseries)|is.data.frame(dseries)){
-	  dseries <- as.matrix(dseries)
-	  nn <- dim(dseries)[2]
-		pp <- dim(dseries)[1]
-		if(is.null(dimnames(dseries)[[1]]) | is.null(dimnames(dseries)[[2]])){
-		  n.error <- n.error + 1
-		  vec.error[n.error] <- "\n Missing names for dseries (they should be numbers, for compatibility with plot functions)"
-		}
-		if(!is.null(time.weights)){
-      if(length(time.weights)!=nn){
-        time.weights <- NULL
-        n.warning <- n.warning + 1
-        vec.warning[n.warning] <- "\n There is a problem with time.weights...they been set to NULL"
-      }	  
-		}
-		if(!is.null(index.weights)){
-		  if((is.matrix(index.weights) | is.data.frame(index.weights)) & dim(index.weights)[2]>1){
-		    if(is.null(dimnames(index.weights)[[1]]))
-		      dimnames(index.weights)[[1]] <- dimnames(dseries)[[1]]
-		    ix.weights <-  index.weights[dimnames(dseries)[[1]],2]
-		    names(ix.weights) <- index.weights[dimnames(dseries)[[1]],1]
-		    index.weights <- ix.weights
-		  }
-		  else{
-		    index.weights <- NULL
-		    n.warning <- n.warning + 1
-		    vec.warning[n.warning] <- "\n There is a problem with argument index.weights...it has been set to NULL"
-		  }	  
-		}
-	}
-	else{
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "The series is not a matrix or dataframe"
-	}
-	
-	## checking validity of regressors
-	if(is.null(model.obj)){
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "The model is missing. Please check."
-	  nomi.covariate <- NULL
-	}
-	else{
-	  model.obj$kk <- sum(model.obj$beta_coeffs)
-	  nomi.covariate <- names(model$beta_coeffs)[model$beta_coeffs]
-	}
-	if(is.null(XX)){
-	  if(!is.null(model.obj$kk) & model.obj$kk>0){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- paste("The model has exogenous coavariates, but there is no data passed in XX." )
-	  }
-	  kk <- 0
-	}
-	else if(model.obj$kk==0){
-	  n.warning <- n.warning + 1
-	  vec.warning[n.warning] <- "The model has no exogenous covariates, so the object passed in X has been ignored."
-	}
-	else if(is.matrix(XX)|is.data.frame(XX)){
-	  if(dim(XX)[2]!=nn){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- "The regressor must have the same number of observations (=columns) as the series."
-	  }
-	  if(dim(XX)[1]!=pp){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- "The regressor must have the same number of locations (=rows) as the series."
-	  }
-	  XX <- as.matrix(XX)
-	  XX <- apply(XX, 1, FUN=function(x){x-mean(x)})
-	  XX <- t(XX)
-	  n.warning <- n.warning + 1
-	  vec.warning[n.warning] <- "The regressor has been mean-centered."
-	  if(is.null(dimnames(XX)[[1]]) | is.null(dimnames(XX)[[2]])){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- "Dimnames for XX are missing."
-	  }
-	  kk <- 1
-	}
-	else if(is.array(XX) & length(dim(XX)==3)){
-	  if(dim(XX)[3]!=nn){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- paste("The regressors must have the same number of observations as the series (=", nn, " instead of ", dim(XX)[3], ").", sep="")
-	  }
-	  if(dim(XX)[2]!=pp){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- paste("The regressors must have the same number of locations as the series (=", pp, " instead of ", dim(XX)[2], ").", sep="")
-	  }
-	  XX <- apply(XX, c(1,2), FUN=function(x){x-mean(x)})
-	  XX <- aperm(XX, c(2,3,1))
-	  n.warning <- n.warning + 1
-	  vec.warning[n.warning] <- "The regressors have been mean-centered."
-	  if(is.null(dimnames(XX)[[1]]) | is.null(dimnames(XX)[[2]]) | is.null(dimnames(XX)[[3]])){
-	    n.error <- n.error + 1
-	    vec.error[n.error] <- paste("Dimnames for X are missing.")
-	  }
-	  kk <- dim(XX)[1]
-	}
-	else{
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "Something wrong with regressor X. It must be a matrix (or list of matrices), a dataframe (or list of dataframes), or an array of order 3."
-	  kk <- 0
-	}
-	
-	if(kk>0 & length(dim(XX))==3){
-	  covariate.temp <- dimnames(XX)[[1]] %in% nomi.covariate
-	  XX <- XX[covariate.temp,,]
-	  kk <- dim(XX)[1]
-	  if(kk!=model.obj$kk){
-	    n.error <- n.error+1
-	    vec.error[n.error] <- "Some covariates in the model are missing from X."
-	  }
-	}
-	if(kk==1 & length(dim(XX))==2){
-	  if(is.null(names(model.obj$beta_coeffs))){
-	    n.error <- n.error+1
-	    vec.error[n.error] <- "The name of the covariate in the model is missing."
-	  }
-	}
-	
-	## checking validity of the spatial matrix
-	if(is.null(ww.index))
-	  ww.index <- ww.index.temp
-	if(is.null(ww.values))
-	  ww.values <- ww.values.temp
-	if(!is.null(model) & (is.null(ww.index) | is.null(ww.values))){
-	  ww.index <- model$ww.index
-	  ww.values <- model$ww.values
-	}
-	if(is.null(ww.index)|is.null(ww.values)){
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "The spatial matrix components are missing."
-	}
-	else if(is.null(dimnames(ww.index)[[1]]) | is.null(dimnames(ww.values)[[1]])){
-	  n.error = n.error+1
-	  vec.error[n.error] <- "Names for spatial matrix are missing"
-	}
+  ## This function receives an sdpd_series object and an sdpd_model object
+  ## built with build_sdpd_series() and build_sdpd_model(), respectively,
+  ## or receives the individual components of an sdpd_series object.
+  ##
+  ## It checks the consistency of the series components with the model and
+  ## returns the checked objects together with errors and warnings.
 
-	## checking the missing values	
-	na <- sum(is.na(dseries))
-	if(na>0){
-	  n.error = n.error+1
-	  vec.error[n.error] <- "The series has NA values."
-	}
-	if(kk==0)
-	  naX <- 0
-	else if(kk==1)
-	  naX <- sum(is.na(XX))
-	else if(kk>1)
-	  naX <- apply(XX, 1, FUN=function(x){sum(is.na(x))})
-	if(sum(naX)!=0){
-	  n.error = n.error+1
-	  vec.error[n.error] <- "There are some missing values in the covariates X."
-	  na <- c(na, naX)
-	  names(na) <- c("naY", paste("naX", seq(1,kk), sep=""))	  
-	}
+  error_vector <- character(20)
+  warning_vector <- character(20)
 
-	if(model.obj$time_effects){
-	  time_effects <- apply(dseries, 2, mean)
-	  dseries <- dseries - matrix(rep(time_effects, pp), nrow=pp, byrow = TRUE)
-	}
-	else time_effects <- numeric(nn)
-	
-	## checking lon, lat and group
-	if(!is.null(lon)){
-	  if(!is.vector(lon) | !is.numeric(lon) | is.null(names(lon))){
-	    n.error = n.error+1
-	    vec.error[n.error] <- "Something wrong with the vector of longitudes (missing names?)"
-	  }
-	}
-	if(!is.null(lat)){
-	  if(!is.vector(lat) | !is.numeric(lat) | is.null(names(lat))){
-	    n.error = n.error+1
-	    vec.error[n.error] <- "Something wrong with the vector of latitudes (missing names?)."
-	  }
-	}
-	if(!is.null(group)){
-	  if(length(dim(group))!=2 | dim(group)[2]!=2 | is.null(dimnames(group)[[1]])){
-	    n.error = n.error+1
-	    vec.error[n.error] <- "Something wrong with the object group (missing names?)."
-	  }
-	  else if(sum(c("COD", "LABEL") %in% dimnames(group)[[2]])<2){
-	    n.error = n.error+1
-	    vec.error[n.error] <- "L'oggetto groups deve contenere le colonne COD e LABEL"
-	  }
-	}
-	
-	if(model.obj$fixed_effects){
-	  mu <- apply(dseries, 1, mean)
-	}
-	else{
-	  mu <- numeric(length(px))
-	  names(mu) <- dimnames(dseries)[[1]]
-	} 
-	
-	if(is.null(px.neighbors)){
-	  n.error <- n.error + 1
-	  vec.error[n.error] <- "\n The object px.neighbors is missing."
-	}
-	
+  n_error <- 0
+  n_warning <- 0
 
-	## returning the structure of data
-	list(series=dseries, ww.index=ww.index, ww.values=ww.values, XX=XX, px.neighbors=px.neighbors, time_effects=time_effects, 
-	     nn=nn, pp=pp, kk=kk, na=na, px=px, lat=lat, lon=lon, group=group,
-	     index.weights=index.weights, time.weights=time.weights, mu=mu, 
-	     errors=vec.error[vec.error!=""], warnings=vec.warning[vec.warning!=""])
+  model_obj <- model
+  ww_index_temp <- NULL
+  ww_values_temp <- NULL
+
+  # Check validity of the series.
+  if (is.list(series)) {
+    # In this case, all objects are passed through a list, as in parallelized
+    # workflows.
+    data_series <- series$series
+    px <- series$px
+    lon <- series$lon
+    lat <- series$lat
+    group <- series$group
+    px_neighbors <- series$px_neighbors
+    ww_index_temp <- series$ww_index
+    ww_values_temp <- series$ww_values
+
+    if (is.null(xx)) {
+      xx <- series$xx
+    }
+  } else {
+    data_series <- series
+  }
+
+  if (is.matrix(data_series) || is.data.frame(data_series)) {
+    data_series <- as.matrix(data_series)
+
+    nn <- dim(data_series)[2]
+    pp <- dim(data_series)[1]
+
+    if (is.null(dimnames(data_series)[[1]]) ||
+        is.null(dimnames(data_series)[[2]])) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "\nMissing names for data_series. They should be numbers for compatibility with plot functions."
+    }
+
+    if (!is.null(time_weights)) {
+      if (length(time_weights) != nn) {
+        time_weights <- NULL
+        n_warning <- n_warning + 1
+        warning_vector[n_warning] <- "\nThere is a problem with time_weights; they have been set to NULL."
+      }
+    }
+
+    if (!is.null(index_weights)) {
+      if ((is.matrix(index_weights) || is.data.frame(index_weights)) &&
+          dim(index_weights)[2] > 1) {
+        if (is.null(dimnames(index_weights)[[1]])) {
+          dimnames(index_weights)[[1]] <- dimnames(data_series)[[1]]
+        }
+
+        spatial_weights <- index_weights[dimnames(data_series)[[1]], 2]
+        names(spatial_weights) <- index_weights[dimnames(data_series)[[1]], 1]
+        index_weights <- spatial_weights
+      } else {
+        index_weights <- NULL
+        n_warning <- n_warning + 1
+        warning_vector[n_warning] <- "\nThere is a problem with index_weights; it has been set to NULL."
+      }
+    }
+  } else {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "The series is not a matrix or data frame."
+  }
+
+  # Check validity of regressors.
+  if (is.null(model_obj)) {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "The model is missing. Please check."
+
+    covariate_names <- NULL
+  } else {
+    model_obj$kk <- sum(model_obj$beta_coeffs)
+    covariate_names <- names(model$beta_coeffs)[model$beta_coeffs]
+  }
+
+  if (is.null(xx)) {
+    if (!is.null(model_obj$kk) && model_obj$kk > 0) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "The model has exogenous covariates, but no data were passed through xx."
+    }
+
+    kk <- 0
+  } else if (model_obj$kk == 0) {
+    n_warning <- n_warning + 1
+    warning_vector[n_warning] <- "The model has no exogenous covariates, so the object passed through xx has been ignored."
+
+    kk <- 0
+  } else if (is.matrix(xx) || is.data.frame(xx)) {
+    if (dim(xx)[2] != nn) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "The regressor must have the same number of observations, i.e. columns, as the series."
+    }
+
+    if (dim(xx)[1] != pp) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "The regressor must have the same number of locations, i.e. rows, as the series."
+    }
+
+    xx <- as.matrix(xx)
+    xx <- apply(xx, 1, FUN = function(x) x - mean(x))
+    xx <- t(xx)
+
+    n_warning <- n_warning + 1
+    warning_vector[n_warning] <- "The regressor has been mean-centered."
+
+    if (is.null(dimnames(xx)[[1]]) || is.null(dimnames(xx)[[2]])) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "Dimnames for xx are missing."
+    }
+
+    kk <- 1
+  } else if (is.array(xx) && length(dim(xx)) == 3) {
+    if (dim(xx)[3] != nn) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- paste(
+        "The regressors must have the same number of observations as the series: ",
+        nn,
+        " instead of ",
+        dim(xx)[3],
+        ".",
+        sep = ""
+      )
+    }
+
+    if (dim(xx)[2] != pp) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- paste(
+        "The regressors must have the same number of locations as the series: ",
+        pp,
+        " instead of ",
+        dim(xx)[2],
+        ".",
+        sep = ""
+      )
+    }
+
+    xx <- apply(xx, c(1, 2), FUN = function(x) x - mean(x))
+    xx <- aperm(xx, c(2, 3, 1))
+
+    n_warning <- n_warning + 1
+    warning_vector[n_warning] <- "The regressors have been mean-centered."
+
+    if (is.null(dimnames(xx)[[1]]) ||
+        is.null(dimnames(xx)[[2]]) ||
+        is.null(dimnames(xx)[[3]])) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "Dimnames for xx are missing."
+    }
+
+    kk <- dim(xx)[1]
+  } else {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "Something is wrong with regressor xx. It must be a matrix, data frame, or three-dimensional array."
+
+    kk <- 0
+  }
+
+  if (kk > 0 && length(dim(xx)) == 3) {
+    covariate_index <- dimnames(xx)[[1]] %in% covariate_names
+    xx <- xx[covariate_index, , ]
+    kk <- dim(xx)[1]
+
+    if (kk != model_obj$kk) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "Some covariates in the model are missing from xx."
+    }
+  }
+
+  if (kk == 1 && length(dim(xx)) == 2) {
+    if (is.null(names(model_obj$beta_coeffs))) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "The name of the covariate in the model is missing."
+    }
+  }
+
+  # Check validity of the spatial matrix.
+  if (is.null(ww_index)) {
+    ww_index <- ww_index_temp
+  }
+
+  if (is.null(ww_values)) {
+    ww_values <- ww_values_temp
+  }
+
+  if (!is.null(model) && (is.null(ww_index) || is.null(ww_values))) {
+    ww_index <- model$ww_index
+    ww_values <- model$ww_values
+  }
+
+  if (is.null(ww_index) || is.null(ww_values)) {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "The spatial matrix components are missing."
+  } else if (is.null(dimnames(ww_index)[[1]]) ||
+             is.null(dimnames(ww_values)[[1]])) {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "Names for the spatial matrix are missing."
+  }
+
+  # Check missing values.
+  na_values <- sum(is.na(data_series))
+
+  if (na_values > 0) {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "The series has NA values."
+  }
+
+  if (kk == 0) {
+    na_x <- 0
+  } else if (kk == 1) {
+    na_x <- sum(is.na(xx))
+  } else if (kk > 1) {
+    na_x <- apply(xx, 1, FUN = function(x) sum(is.na(x)))
+  }
+
+  if (sum(na_x) != 0) {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "There are missing values in the covariates xx."
+
+    na_values <- c(na_values, na_x)
+    names(na_values) <- c("na_y", paste("na_x", seq_len(kk), sep = ""))
+  }
+
+  if (model_obj$time_effects) {
+    time_effects <- apply(data_series, 2, mean)
+    data_series <- data_series - matrix(
+      rep(time_effects, pp),
+      nrow = pp,
+      byrow = TRUE
+    )
+  } else {
+    time_effects <- numeric(nn)
+  }
+
+  # Check lon, lat, and group.
+  if (!is.null(lon)) {
+    if (!is.vector(lon) || !is.numeric(lon) || is.null(names(lon))) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "Something is wrong with the longitude vector. Are names missing?"
+    }
+  }
+
+  if (!is.null(lat)) {
+    if (!is.vector(lat) || !is.numeric(lat) || is.null(names(lat))) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "Something is wrong with the latitude vector. Are names missing?"
+    }
+  }
+
+  if (!is.null(group)) {
+    if (length(dim(group)) != 2 ||
+        dim(group)[2] != 2 ||
+        is.null(dimnames(group)[[1]])) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "Something is wrong with the group object. Are names missing?"
+    } else if (sum(c("COD", "LABEL") %in% dimnames(group)[[2]]) < 2) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "The group object must contain the columns COD and LABEL."
+    }
+  }
+
+  if (model_obj$fixed_effects) {
+    mu <- apply(data_series, 1, mean)
+  } else {
+    mu <- numeric(length(px))
+    names(mu) <- dimnames(data_series)[[1]]
+  }
+
+  if (is.null(px_neighbors)) {
+    n_error <- n_error + 1
+    error_vector[n_error] <- "\nThe px_neighbors object is missing."
+  }
+
+  # Return checked data structure.
+  list(
+    series = data_series,
+    ww_index = ww_index,
+    ww_values = ww_values,
+    xx = xx,
+    px_neighbors = px_neighbors,
+    time_effects = time_effects,
+    nn = nn,
+    pp = pp,
+    kk = kk,
+    na = na_values,
+    px = px,
+    lat = lat,
+    lon = lon,
+    group = group,
+    index_weights = index_weights,
+    time_weights = time_weights,
+    mu = mu,
+    errors = error_vector[error_vector != ""],
+    warnings = warning_vector[warning_vector != ""]
+  )
 }

@@ -1,76 +1,198 @@
+#' Estimate SDP-D Coefficients
+#'
+#' Estimates the first-stage SDP-D model coefficients using spatial covariance
+#' components and, when included in the model, computes fixed effects.
+#'
+#' The function estimates active lambda coefficients and beta coefficients for
+#' each spatial unit. If fixed effects are included in the model, they are
+#' computed from the reduced-form coefficient matrix and the spatial-unit means.
+#'
+#' @param ww Numeric matrix. Spatial weight matrix.
+#' @param covs List. Covariance components used for coefficient estimation.
+#'   Expected elements are `index`, `cov12`, `cov11`, and, when covariates are
+#'   included, `cov_x`.
+#' @param mu Numeric vector. Spatial-unit means used to compute fixed effects.
+#' @param model SDP-D model object, typically created with
+#'   [build_sdpd_model()].
+#'
+#' @return A list containing:
+#' \describe{
+#'   \item{coeff_hat}{Numeric matrix of estimated coefficients.}
+#' }
+#'
+#' @details
+#' Coefficients are estimated separately for each spatial unit through local
+#' least-squares systems based on the covariance components.
+#'
+#' If the local normal-equation matrix is not invertible, the corresponding
+#' coefficient estimates are set to `NA`.
+#'
+#' @examples
+#' coeffs <- fit_sdpd_coefficients(
+#'   ww = ww,
+#'   covs = covs,
+#'   mu = mu,
+#'   model = model
+#' )
+#'
+#' @seealso [build_sdpd_model()]
+#'
+#' @export
+fit_sdpd_coefficients <- function(ww, covs, mu, model) {
+  lambda_names <- names(model$lambda_coeffs)[model$lambda_coeffs]
+  beta_names <- names(model$beta_coeffs)[model$beta_coeffs]
+  fixed_effects_name <- "fixed_effects"[model$fixed_effects]
 
-fit.sdpd.coefficients <- function (W, COVs, mu, model) 
-{
-  lambda.names <- names(model$lambda_coeffs)[model$lambda_coeffs]
-  beta.names <- names(model$beta_coeffs)[model$beta_coeffs]
-  fixed_effects.name <- c("fixed_effects")[model$fixed_effects]
-  px <- dimnames(W)[[1]]
-  data <- list(WW=W, pp=length(px), kk=length(beta.names))
-  
-  ## variable definition...
-  coeff.hat	<- matrix(0, nrow=data$pp, ncol=sum(model$fixed_effects)+sum(model$lambda_coeffs)+sum(model$beta_coeffs))
-  dimnames(coeff.hat)[[2]] <- c(lambda.names, beta.names, fixed_effects.name)
-  dimnames(coeff.hat)[[1]] <- px
-  ei <- numeric(data$pp); names(ei) <- px
-  
-  ## estimation of coefficients...
-  invertible <- function(m) class(try(solve(m),silent=T))[1]=="matrix"
-  if(data$kk==0){
-    name.coeff <- lambda.names # sum(model$lambda_coeffs)
-    for(ii in px){
-      wi <- W[ii,px]
-      ei[px] <- 0; ei[ii] <- 1
-      indici <- as.character(na.exclude(COVs$index[ii,]))
-      Yi <- t(COVs$cov12[px,indici])%*%ei
-      Xi <- cbind(t(COVs$cov12[px,indici])%*%wi, t(COVs$cov11[px,indici])%*%ei, t(COVs$cov11[px,indici])%*%wi)[,model$lambda_coeffs]
-      if(!invertible(t(Xi)%*%Xi)){
-        coeff.hat[ii,name.coeff] <- NA
+  px <- dimnames(ww)[[1]]
+
+  data <- list(
+    ww = ww,
+    pp = length(px),
+    kk = length(beta_names)
+  )
+
+  # Variable definition.
+  coeff_hat <- matrix(
+    0,
+    nrow = data$pp,
+    ncol = sum(model$fixed_effects) +
+      sum(model$lambda_coeffs) +
+      sum(model$beta_coeffs)
+  )
+
+  dimnames(coeff_hat)[[2]] <- c(
+    lambda_names,
+    beta_names,
+    fixed_effects_name
+  )
+
+  dimnames(coeff_hat)[[1]] <- px
+
+  unit_vector <- numeric(data$pp)
+  names(unit_vector) <- px
+
+  # Estimation of coefficients.
+  is_invertible <- function(matrix_obj) {
+    inherits(try(solve(matrix_obj), silent = TRUE), "matrix")
+  }
+
+  if (data$kk == 0) {
+    coeff_names <- lambda_names
+
+    for (ii in px) {
+      weight_i <- ww[ii, px]
+
+      unit_vector[px] <- 0
+      unit_vector[ii] <- 1
+
+      indices <- as.character(stats::na.exclude(covs$index[ii, ]))
+
+      y_i <- t(covs$cov12[px, indices]) %*% unit_vector
+
+      x_i <- cbind(
+        t(covs$cov12[px, indices]) %*% weight_i,
+        t(covs$cov11[px, indices]) %*% unit_vector,
+        t(covs$cov11[px, indices]) %*% weight_i
+      )[, model$lambda_coeffs]
+
+      if (!is_invertible(t(x_i) %*% x_i)) {
+        coeff_hat[ii, coeff_names] <- NA
         next
       }
-      coeff.hat[ii,name.coeff] <- solve(t(Xi)%*%Xi)%*%t(Xi)%*%Yi
+
+      coeff_hat[ii, coeff_names] <-
+        solve(t(x_i) %*% x_i) %*% t(x_i) %*% y_i
     }
-  }
-  else if(data$kk==1){
-    name.coeff <- c(lambda.names, beta.names)
-    for(ii in px){
-      wi <- W[ii,px]
-      ei[px] <- 0; ei[ii] <- 1
-      indici <- as.character(na.exclude(COVs$index[ii,]))
-      Yi <- t(COVs$cov12[px,indici])%*%ei
-      Xi <- cbind(t(COVs$cov12[px,indici])%*%wi, t(COVs$cov11[px,indici])%*%ei, t(COVs$cov11[px,indici])%*%wi, t(COVs$covX[px,indici])%*%ei)[,c(model$lambda_coeffs,T)]
-      if(!invertible(t(Xi)%*%Xi)){
-        coeff.hat[ii,name.coeff] <- NA
+  } else if (data$kk == 1) {
+    coeff_names <- c(lambda_names, beta_names)
+
+    for (ii in px) {
+      weight_i <- ww[ii, px]
+
+      unit_vector[px] <- 0
+      unit_vector[ii] <- 1
+
+      indices <- as.character(stats::na.exclude(covs$index[ii, ]))
+
+      y_i <- t(covs$cov12[px, indices]) %*% unit_vector
+
+      x_i <- cbind(
+        t(covs$cov12[px, indices]) %*% weight_i,
+        t(covs$cov11[px, indices]) %*% unit_vector,
+        t(covs$cov11[px, indices]) %*% weight_i,
+        t(covs$cov_x[px, indices]) %*% unit_vector
+      )[, c(model$lambda_coeffs, TRUE)]
+
+      if (!is_invertible(t(x_i) %*% x_i)) {
+        coeff_hat[ii, coeff_names] <- NA
         next
       }
-      coeff.hat[ii,name.coeff] <- (solve(t(Xi)%*%Xi)%*%t(Xi)%*%Yi)
+
+      coeff_hat[ii, coeff_names] <-
+        solve(t(x_i) %*% x_i) %*% t(x_i) %*% y_i
     }
-  }
-  else if(data$kk>1){
-    name.coeff <- c(lambda.names, beta.names)
-    for(ii in px){
-      wi <- W[ii,px]
-      ei[px] <- 0; ei[ii] <- 1
-      indici <- as.character(na.exclude(COVs$index[ii,]))
-      Yi <- t(COVs$cov12[px,indici])%*%ei
-      Xi <- cbind(t(COVs$cov12[px,indici])%*%wi, t(COVs$cov11[px,indici])%*%ei, t(COVs$cov11[px,indici])%*%wi)[,model$lambda_coeffs]
-      Xi <- cbind(Xi, t(COVs$covX[beta.names,ii,indici]))
-      if(!invertible(t(Xi)%*%Xi)){
-        coeff.hat[ii,name.coeff] <- NA
+  } else if (data$kk > 1) {
+    coeff_names <- c(lambda_names, beta_names)
+
+    for (ii in px) {
+      weight_i <- ww[ii, px]
+
+      unit_vector[px] <- 0
+      unit_vector[ii] <- 1
+
+      indices <- as.character(stats::na.exclude(covs$index[ii, ]))
+
+      y_i <- t(covs$cov12[px, indices]) %*% unit_vector
+
+      x_i <- cbind(
+        t(covs$cov12[px, indices]) %*% weight_i,
+        t(covs$cov11[px, indices]) %*% unit_vector,
+        t(covs$cov11[px, indices]) %*% weight_i
+      )[, model$lambda_coeffs]
+
+      x_i <- cbind(
+        x_i,
+        t(covs$cov_x[beta_names, ii, indices])
+      )
+
+      if (!is_invertible(t(x_i) %*% x_i)) {
+        coeff_hat[ii, coeff_names] <- NA
         next
       }
-      coeff.hat[ii,name.coeff] <- (solve(t(Xi)%*%Xi)%*%t(Xi)%*%Yi)
+
+      coeff_hat[ii, coeff_names] <-
+        solve(t(x_i) %*% x_i) %*% t(x_i) %*% y_i
     }
   }
-  if(model$fixed_effects){
-    ll0 <- ll1 <- ll2 <- llv <- matrix(0, ncol=data$pp, nrow=data$pp)
-    if(model$lambda_coeffs[1]) ll0 <- diag(coeff.hat[px,"lambda0"])%*%W
-    if(model$lambda_coeffs[2]) ll1 <- diag(coeff.hat[px,"lambda1"])
-    if(model$lambda_coeffs[3]) ll2 <- diag(coeff.hat[px,"lambda2"])%*%W
-    B <- diag(rep(1, data$pp))-ll0-ll1-ll2
-    coeff.hat[px,fixed_effects.name] <- B%*%mu[px]
+
+  if (model$fixed_effects) {
+    lambda_0_matrix <- matrix(0, ncol = data$pp, nrow = data$pp)
+    lambda_1_matrix <- matrix(0, ncol = data$pp, nrow = data$pp)
+    lambda_2_matrix <- matrix(0, ncol = data$pp, nrow = data$pp)
+
+    if (model$lambda_coeffs[1]) {
+      lambda_0_matrix <- diag(coeff_hat[px, "lambda_0"]) %*% ww
+    }
+
+    if (model$lambda_coeffs[2]) {
+      lambda_1_matrix <- diag(coeff_hat[px, "lambda_1"])
+    }
+
+    if (model$lambda_coeffs[3]) {
+      lambda_2_matrix <- diag(coeff_hat[px, "lambda_2"]) %*% ww
+    }
+
+    b_matrix <- diag(rep(1, data$pp)) -
+      lambda_0_matrix -
+      lambda_1_matrix -
+      lambda_2_matrix
+
+    coeff_hat[px, fixed_effects_name] <- b_matrix %*% mu[px]
   }
-  
-  ## estimation results...
-  list(coeff.hat=coeff.hat)
+
+  # Estimation results.
+  list(coeff_hat = coeff_hat)
 }
+
+
 
