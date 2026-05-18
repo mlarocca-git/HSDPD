@@ -53,6 +53,7 @@ Estimation is performed by \code{\link[=fit_sdpd_procedure]{fit_sdpd_procedure()
 assembled by \code{\link[=fit_sdpd_assemble]{fit_sdpd_assemble()}}.
 }
 \examples{
+\dontrun{
 fit <- fit_sdpd_model(
   series = series,
   model = model
@@ -63,7 +64,7 @@ fit_parallel <- fit_sdpd_model(
   model = model,
   parallelize = TRUE
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_series]{build_sdpd_series()}},

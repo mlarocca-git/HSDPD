@@ -97,19 +97,12 @@ and stores them in \code{mu}.
 Regressors are mean-centered when supplied.
 }
 \examples{
+\dontrun{
 checked_series <- check_sdpd_series(
   series = series,
   model = model
 )
-
-checked_series <- check_sdpd_series(
-  series = y,
-  xx = x,
-  model = model,
-  ww_index = model$ww_index,
-  ww_values = model$ww_values,
-  px_neighbors = model$px_neighbors
-)
+}
 
 }
 \seealso{

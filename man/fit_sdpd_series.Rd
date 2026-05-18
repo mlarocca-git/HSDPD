@@ -72,6 +72,7 @@ If \code{resids} is supplied and \code{markovian = FALSE}, the function uses a
 fixed-point autoregressive update.
 }
 \examples{
+\dontrun{
 fitted_series <- fit_sdpd_series(
   data_series = data_series,
   ww = ww,
@@ -89,7 +90,7 @@ simulated_series <- fit_sdpd_series(
   resids = resids,
   markovian = TRUE
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_model]{build_sdpd_model()}}

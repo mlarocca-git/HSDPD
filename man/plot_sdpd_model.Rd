@@ -55,12 +55,13 @@ The renamed API uses snake_case argument names. The old \code{t.axis} structure 
 now \code{t_axis}, with elements \code{t_labels} and \code{t_points}.
 }
 \examples{
+\dontrun{
 plot_sdpd_model(
   res_fit = fit,
   n_units = "all",
   n_vars = "all"
 )
-
+}
 }
 \seealso{
 \code{\link[=plot_1_sdpd_model]{plot_1_sdpd_model()}}

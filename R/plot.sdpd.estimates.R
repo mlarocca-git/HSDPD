@@ -31,6 +31,7 @@
 #' `"coeff_hat"`.
 #'
 #' @examples
+#' \dontrun{
 #' plots <- plot_sdpd_estimates(
 #'   results = fit,
 #'   item = "coeff_hat",
@@ -38,7 +39,7 @@
 #' )
 #'
 #' plots$lambda_0
-#'
+#'}
 #' @seealso [ggplot2::ggplot()]
 #'
 #' @export
@@ -78,7 +79,12 @@ plot_sdpd_estimates <- function(results,
 
     plot_list[[ii]] <- ggplot2::ggplot(
       plot_data,
-      ggplot2::aes(x = lon, y = lat, group = group, colour = value)
+      ggplot2::aes(
+        x = .data$lon,
+        y = .data$lat,
+        group = .data$group,
+        colour = .data$value
+      )
     ) +
       ggplot2::geom_point(size = size_point) +
       ggplot2::scale_colour_gradient2(

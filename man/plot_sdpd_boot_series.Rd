@@ -57,6 +57,7 @@ follows the renamed coefficient convention, with columns such as \code{lambda_0}
 \code{lambda_1}, \code{lambda_2}, and \code{fixed_effects}.
 }
 \examples{
+\dontrun{
 plot_sdpd_boot_series(
   bb = 500,
   pp = pp,
@@ -67,5 +68,5 @@ plot_sdpd_boot_series(
   res_fit = res_fit,
   group_index = group_index
 )
-
+}
 }

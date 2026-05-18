@@ -54,6 +54,7 @@ For consistency with the renamed package API, the default \code{item} is
 \code{"coeff_hat"}.
 }
 \examples{
+\dontrun{
 plots <- plot_sdpd_estimates(
   results = fit,
   item = "coeff_hat",
@@ -61,7 +62,7 @@ plots <- plot_sdpd_estimates(
 )
 
 plots$lambda_0
-
+}
 }
 \seealso{
 \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}

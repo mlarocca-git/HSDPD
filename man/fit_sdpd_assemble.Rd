@@ -49,8 +49,9 @@ If \code{obj_stime$error} is not \code{NULL}, the function reports the estimatio
 and returns \code{NULL}.
 }
 \examples{
+\dontrun{
 assembled_result <- fit_sdpd_assemble(obj_stime)
-
+}
 }
 \seealso{
 \code{\link[=p.adjust]{p.adjust()}}

@@ -60,6 +60,7 @@ specified in \code{sim_options}. If a coefficient is marked as constant, one val
 is generated within each \code{index_weights} group.
 }
 \examples{
+\dontrun{
 generated_model <- generate_sdpd_model(
   pp = 100,
   model = model,
@@ -68,7 +69,7 @@ generated_model <- generate_sdpd_model(
   px_neighbors = NULL,
   sim_options = sim_options
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_model]{build_sdpd_model()}}

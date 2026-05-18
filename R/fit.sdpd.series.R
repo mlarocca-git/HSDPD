@@ -43,6 +43,7 @@
 #' fixed-point autoregressive update.
 #'
 #' @examples
+#' \dontrun{
 #' fitted_series <- fit_sdpd_series(
 #'   data_series = data_series,
 #'   ww = ww,
@@ -60,7 +61,7 @@
 #'   resids = resids,
 #'   markovian = TRUE
 #' )
-#'
+#'}
 #' @seealso [build_sdpd_model()]
 #'
 #' @export

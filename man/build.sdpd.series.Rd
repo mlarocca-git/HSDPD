@@ -26,23 +26,37 @@ build.sdpd.series(
 )
 }
 \arguments{
-\item{px}{Optional object defining the spatial units or pixel structure.}
+\item{df.obj}{Optional data object used by parallelized workflows.}
 
-\item{lon}{Optional vector or column name identifying longitude coordinates.}
+\item{px}{Optional vector of spatial-unit identifiers.}
 
-\item{lat}{Optional vector or column name identifying latitude coordinates.}
+\item{rry}{Optional endogenous data series.}
 
-\item{label_groups}{Optional group labels, used mainly when reading raster
-data.}
+\item{rrxx}{Optional exogenous regressors.}
 
-\item{model}{SDP-D model object, typically created with
-\code{\link[=build_sdpd_model]{build_sdpd_model()}}.}
+\item{lon}{Optional longitude vector or column identifier.}
 
-\item{check}{Logical scalar. Whether the resulting series should be checked
-using \code{\link[=check_sdpd_series]{check_sdpd_series()}}. Defaults to \code{TRUE}.}
+\item{lat}{Optional latitude vector or column identifier.}
 
-\item{nn}{Optional integer. Temporal dimension or number of observations used
-when simulating the series.}
+\item{rrgroups}{Optional group matrix or data frame.}
+
+\item{label_groups}{Optional labels for raster group codes.}
+
+\item{model}{SDP-D model object.}
+
+\item{check}{Logical scalar. Whether to check the generated series.}
+
+\item{ww.index}{Optional spatial-neighbor index matrix.}
+
+\item{ww.values}{Optional spatial-weight value matrix.}
+
+\item{px.neighbors}{Optional pixel-neighbor structure.}
+
+\item{SIM}{Logical scalar. Whether to simulate the data.}
+
+\item{nn}{Optional integer. Number of time observations for simulation.}
+
+\item{vec.options}{List of vectorization and simulation options.}
 }
 \value{
 See \code{\link[=build_sdpd_series]{build_sdpd_series()}}.

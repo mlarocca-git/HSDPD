@@ -28,12 +28,13 @@
 #' now `t_axis`, with elements `t_labels` and `t_points`.
 #'
 #' @examples
+#' \dontrun{
 #' plot_sdpd_model(
 #'   res_fit = fit,
 #'   n_units = "all",
 #'   n_vars = "all"
 #' )
-#'
+#'}
 #' @seealso [plot_1_sdpd_model()]
 #'
 #' @export

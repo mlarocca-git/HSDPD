@@ -62,6 +62,7 @@ If \code{by_adjusted = TRUE}, values are adjusted using \code{\link[stats:p.adju
 \code{method = "BY"}.
 }
 \examples{
+\dontrun{
 plot_stat_discrete_resids(
   results = fit,
   statistic = mean,
@@ -75,7 +76,7 @@ plot_stat_discrete_resids(
   by_adjusted = TRUE,
   alpha = 0.05
 )
-
+}
 }
 \seealso{
 \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}, \code{\link[stats:p.adjust]{stats::p.adjust()}}

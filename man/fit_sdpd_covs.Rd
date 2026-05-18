@@ -65,6 +65,7 @@ If \code{px_neighbors} is supplied, the function appends
 \code{px_neighbors$index} as the neighbor index matrix.
 }
 \examples{
+\dontrun{
 covs <- fit_sdpd_covs(
   series = series,
   kk = 0,
@@ -80,7 +81,7 @@ covs <- fit_sdpd_covs(
   nn = ncol(series),
   pp = nrow(series)
 )
-
+}
 }
 \seealso{
 \code{\link[=fit_sdpd_coefficients]{fit_sdpd_coefficients()}}, \code{\link[stats:cov]{stats::cov()}}

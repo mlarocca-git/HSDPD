@@ -43,6 +43,7 @@ If \code{model$fixed_effects = TRUE}, the local regression includes an intercept
 term and updates both beta coefficients and \code{fixed_effects}.
 }
 \examples{
+\dontrun{
 coeff_hat <- fit_second_stage(
   data_series = data_series,
   x_centered = x_centered,
@@ -50,7 +51,7 @@ coeff_hat <- fit_second_stage(
   model = model,
   coeff_hat = coeff_hat
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_model]{build_sdpd_model()}}

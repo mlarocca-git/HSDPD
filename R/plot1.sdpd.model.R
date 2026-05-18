@@ -42,12 +42,13 @@
 #' panel.
 #'
 #' @examples
+#' \dontrun{
 #' plot_1_sdpd_model(
 #'   res_fit = fit,
 #'   n_units = "all",
 #'   n_vars = "all"
 #' )
-#'
+#'}
 #' @export
 plot_1_sdpd_model <- function(res_fit,
                               n_units = "all",

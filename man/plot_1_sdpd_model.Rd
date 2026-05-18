@@ -67,10 +67,11 @@ effects are represented as a horizontal dashed grey line in the time-series
 panel.
 }
 \examples{
+\dontrun{
 plot_1_sdpd_model(
   res_fit = fit,
   n_units = "all",
   n_vars = "all"
 )
-
+}
 }

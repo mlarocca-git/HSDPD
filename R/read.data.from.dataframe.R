@@ -53,6 +53,7 @@
 #' `series_boundary`, not `seriesBoundary`.
 #'
 #' @examples
+#' \dontrun{
 #' series_object <- read_data_from_dataframe(
 #'   px = px,
 #'   rr_y = rr_y,
@@ -63,7 +64,7 @@
 #'   ww_values = ww_values,
 #'   px_neighbors = px_neighbors
 #' )
-#'
+#'}
 #' @seealso [build_sdpd_series()]
 #'
 #' @export

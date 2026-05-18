@@ -42,6 +42,7 @@
 #' `px_neighbors$index` as the neighbor index matrix.
 #'
 #' @examples
+#' \dontrun{
 #' covs <- fit_sdpd_covs(
 #'   series = series,
 #'   kk = 0,
@@ -57,7 +58,7 @@
 #'   nn = ncol(series),
 #'   pp = nrow(series)
 #' )
-#'
+#'}
 #' @seealso [fit_sdpd_coefficients()], [stats::cov()]
 #'
 #' @export

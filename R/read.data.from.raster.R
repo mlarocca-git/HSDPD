@@ -338,7 +338,7 @@ read_data_from_raster <- function(px = NULL,
       ncol = (2 * vec_options$px_core + 1)^2
     )
 
-    dimnames(ww_index)[[1]] <- indimnames(ww_values)[[1]] <- indices[keep_indices]
+    dimnames(ww_index)[[1]] <- dimnames(ww_values)[[1]] <- indices[keep_indices]
 
     if (type_w == "distance") {
       ww <- terra::distance(

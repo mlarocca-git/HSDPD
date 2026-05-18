@@ -30,12 +30,13 @@
 #' are converted to dates using [as.Date()].
 #'
 #' @examples
+#' \dontrun{
 #' plot_sdpd_series_fits(
 #'   results = fit,
 #'   latitude = 45.1,
 #'   longitude = 9.2
 #' )
-#'
+#'}
 #' @seealso [ggplot2::ggplot()]
 #'
 #' @export
@@ -80,40 +81,47 @@ plot_sdpd_series_fits <- function(results,
   }
 
   selected_series <- results |>
-    dplyr::mutate(latitude_rounded = round(lat, n_digits)) |>
-    dplyr::mutate(longitude_rounded = round(lon, n_digits)) |>
+    dplyr::mutate(latitude_rounded = round(.data$lat, n_digits)) |>
+    dplyr::mutate(longitude_rounded = round(.data$lon, n_digits)) |>
     dplyr::filter(
-      latitude_rounded == round(latitude, n_digits),
-      longitude_rounded == round(longitude, n_digits)
+      .data$latitude_rounded == round(latitude, n_digits),
+      .data$longitude_rounded == round(longitude, n_digits)
     ) |>
-    dplyr::select(fitted, resid)
+    dplyr::select(dplyr::all_of(c("fitted", "resid")))
 
-  if (dim(selected_series)[1] == 0) {
+  if (nrow(selected_series) == 0) {
     return("These coordinates are not present in the database.")
   }
 
-  offset_axis <- range(selected_series$fitted, na.rm = TRUE)[1] -
-    0.1 * diff(range(selected_series$fitted, na.rm = TRUE))
+  fitted_vector <- as.numeric(selected_series[["fitted"]])
+  residual_vector <- as.numeric(selected_series[["resid"]])
+
+  offset_axis <- range(fitted_vector, na.rm = TRUE)[1] -
+    0.1 * diff(range(fitted_vector, na.rm = TRUE))
 
   plot_data <- data.frame(
     time = time_range,
-    fitted = as.numeric(selected_series$fitted),
-    resid = as.numeric(selected_series$resid)
-  ) |>
-    dplyr::mutate(observed = resid + fitted)
+    fitted_values = fitted_vector,
+    residuals = residual_vector
+  )
+
+  plot_data$observed_values <- plot_data$residuals + plot_data$fitted_values
 
   result <- plot_data |>
-    ggplot2::ggplot(ggplot2::aes(x = time)) +
-    ggplot2::geom_line(ggplot2::aes(y = fitted, color = "Fitted")) +
-    ggplot2::geom_line(ggplot2::aes(y = observed, color = "Observed")) +
+    ggplot2::ggplot(ggplot2::aes(x = .data$time)) +
     ggplot2::geom_line(
-      ggplot2::aes(y = resid + offset_axis, color = "Residuals")
+      ggplot2::aes(y = .data$fitted_values, color = "Fitted")
+    ) +
+    ggplot2::geom_line(
+      ggplot2::aes(y = .data$observed_values, color = "Observed")
+    ) +
+    ggplot2::geom_line(
+      ggplot2::aes(y = .data$residuals + offset_axis, color = "Residuals")
     ) +
     ggplot2::geom_hline(
-      ggplot2::aes(yintercept = mean(resid, na.rm = TRUE) + offset_axis)
+      yintercept = mean(plot_data$residuals, na.rm = TRUE) + offset_axis
     ) +
     ggplot2::guides(x = ggplot2::guide_axis(angle = 0)) +
-    ggplot2::scale_x_date(date_labels = "%Y", date_breaks = "1 year") +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::scale_y_continuous(
       name = ylab,
@@ -129,6 +137,11 @@ plot_sdpd_series_fits <- function(results,
       y = ylab,
       color = ""
     )
+
+  if (inherits(time_range, "Date")) {
+    result <- result +
+      ggplot2::scale_x_date(date_labels = "%Y", date_breaks = "1 year")
+  }
 
   result
 }

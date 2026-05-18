@@ -48,6 +48,7 @@ This function is the core single-series estimation routine used by
 each group-specific SDP-D series object.
 }
 \examples{
+\dontrun{
 result <- fit_sdpd_procedure(
   series = series,
   model = model
@@ -59,6 +60,7 @@ result_checked <- fit_sdpd_procedure(
   check = TRUE,
   two_stage = TRUE
 )
+}
 
 }
 \seealso{

@@ -46,6 +46,7 @@
 #' is generated within each `index_weights` group.
 #'
 #' @examples
+#' \dontrun{
 #' generated_model <- generate_sdpd_model(
 #'   pp = 100,
 #'   model = model,
@@ -54,7 +55,7 @@
 #'   px_neighbors = NULL,
 #'   sim_options = sim_options
 #' )
-#'
+#'}
 #' @seealso [build_sdpd_model()]
 #'
 #' @export

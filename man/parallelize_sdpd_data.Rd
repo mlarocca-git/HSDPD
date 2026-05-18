@@ -33,11 +33,12 @@ Each group-specific object is rebuilt with \code{\link[=build_sdpd_series]{build
 full series, covariates, coordinates, spatial weights, and neighbor structure.
 }
 \examples{
+\dontrun{
 grouped_series <- parallelize_sdpd_data(
   series_object = series,
   model = model
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_series]{build_sdpd_series()}}, \code{\link[=fit_sdpd_model]{fit_sdpd_model()}}

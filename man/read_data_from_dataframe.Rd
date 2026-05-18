@@ -82,6 +82,7 @@ is named \code{xx}, not \code{X}, and the boundary component is named
 \code{series_boundary}, not \code{seriesBoundary}.
 }
 \examples{
+\dontrun{
 series_object <- read_data_from_dataframe(
   px = px,
   rr_y = rr_y,
@@ -92,7 +93,7 @@ series_object <- read_data_from_dataframe(
   ww_values = ww_values,
   px_neighbors = px_neighbors
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_series]{build_sdpd_series()}}

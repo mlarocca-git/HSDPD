@@ -55,6 +55,7 @@ factor level. If \code{time_weights} is numeric, the function computes
 time-weighted means.
 }
 \examples{
+\dontrun{
 mean_equation <- fit_sdpd_mean_equation_model(
   result = result,
   ww = ww
@@ -66,5 +67,6 @@ mean_equation <- fit_sdpd_mean_equation_model(
   time_weights = time_weights,
   index_weights = index_weights
 )
+}
 
 }

@@ -55,12 +55,13 @@ Time labels are inferred from \code{colnames(results$fitted)}. Numeric time labe
 are converted to dates using \code{\link[=as.Date]{as.Date()}}.
 }
 \examples{
+\dontrun{
 plot_sdpd_series_fits(
   results = fit,
   latitude = 45.1,
   longitude = 9.2
 )
-
+}
 }
 \seealso{
 \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}

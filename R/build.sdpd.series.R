@@ -54,6 +54,7 @@
 #' class `SpatRaster`.
 #'
 #' @examples
+#' \dontrun{
 #' series <- build_sdpd_series(
 #'   px = px,
 #'   rr_y = rr_y,
@@ -66,6 +67,7 @@
 #'   sim = TRUE,
 #'   nn = 50
 #' )
+#' }
 #'
 #' @seealso
 #' [build_sdpd_model()],
@@ -148,8 +150,8 @@ build_sdpd_series <- function(df_obj = NULL,
       rr_y = rr_y,
       rr_xx = rr_xx,
       model = model,
-      longit = lon,
-      latit = lat,
+      lon = lon,
+      lat = lat,
       rr_groups = rr_groups,
       ww_index = ww_index,
       ww_values = ww_values,

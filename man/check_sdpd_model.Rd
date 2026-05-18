@@ -51,13 +51,9 @@ then computes diagnostics based on the lambda components available in the
 coefficient matrix.
 }
 \examples{
+\dontrun{
 diagnostics <- check_sdpd_model(model = model)
-
-diagnostics <- check_sdpd_model(
-  model = model,
-  ww_index = model$ww_index,
-  ww_values = model$ww_values
-)
+}
 
 }
 \seealso{

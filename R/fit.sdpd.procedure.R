@@ -29,6 +29,7 @@
 #' each group-specific SDP-D series object.
 #'
 #' @examples
+#' \dontrun{
 #' result <- fit_sdpd_procedure(
 #'   series = series,
 #'   model = model
@@ -40,7 +41,8 @@
 #'   check = TRUE,
 #'   two_stage = TRUE
 #' )
-#'
+#'}
+#' 
 #' @seealso
 #' [fit_sdpd_model()],
 #' [check_sdpd_series()],

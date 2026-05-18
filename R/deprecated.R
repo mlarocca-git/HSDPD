@@ -7,7 +7,23 @@ build.sdpd.model <- function(...) {
 #'
 #' Deprecated wrapper for [build_sdpd_series()].
 #'
-#' @inheritParams build_sdpd_series
+#' @param df.obj Optional data object used by parallelized workflows.
+#' @param px Optional vector of spatial-unit identifiers.
+#' @param rry Optional endogenous data series.
+#' @param rrxx Optional exogenous regressors.
+#' @param lon Optional longitude vector or column identifier.
+#' @param lat Optional latitude vector or column identifier.
+#' @param rrgroups Optional group matrix or data frame.
+#' @param label_groups Optional labels for raster group codes.
+#' @param model SDP-D model object.
+#' @param check Logical scalar. Whether to check the generated series.
+#' @param ww.index Optional spatial-neighbor index matrix.
+#' @param ww.values Optional spatial-weight value matrix.
+#' @param px.neighbors Optional pixel-neighbor structure.
+#' @param SIM Logical scalar. Whether to simulate the data.
+#' @param nn Optional integer. Number of time observations for simulation.
+#' @param vec.options List of vectorization and simulation options.
+#'
 #' @return See [build_sdpd_series()].
 #' @seealso [build_sdpd_series()]
 #' @export
@@ -37,6 +53,36 @@ build.sdpd.series <- function(df.obj = NULL,
                               )) {
   .Deprecated("build_sdpd_series")
 
+  if (!is.null(df.obj) && is.null(px)) {
+    px <- df.obj$px
+  }
+
+  # Map old vec.options names to the new snake_case API.
+  if (!is.null(vec.options$px.core) && is.null(vec.options$px_core)) {
+    vec.options$px_core <- vec.options$px.core
+  }
+
+  if (!is.null(vec.options$px.neighbors) && is.null(vec.options$px_neighbors)) {
+    vec.options$px_neighbors <- vec.options$px.neighbors
+  }
+
+  if (!is.null(vec.options$na.rm) && is.null(vec.options$na_rm)) {
+    vec.options$na_rm <- vec.options$na.rm
+  }
+
+  if (!is.null(vec.options$NAcovs) && is.null(vec.options$na_covs)) {
+    vec.options$na_covs <- vec.options$NAcovs
+  }
+
+  if (!is.null(vec.options$covariates.sim.model) &&
+      is.null(vec.options$covariates_sim_model)) {
+    vec.options$covariates_sim_model <- vec.options$covariates.sim.model
+  }
+
+  if (!is.null(vec.options$num.steps) && is.null(vec.options$num_steps)) {
+    vec.options$num_steps <- vec.options$num.steps
+  }
+
   build_sdpd_series(
     df_obj = df.obj,
     px = px,
@@ -53,17 +99,10 @@ build.sdpd.series <- function(df.obj = NULL,
     px_neighbors = px.neighbors,
     sim = SIM,
     nn = nn,
-    vec_options = list(
-      px_core = vec.options$px.core,
-      px_neighbors = vec.options$px.neighbors,
-      na_rm = vec.options$na.rm,
-      na_covs = vec.options$NAcovs,
-      covariates_sim_model = vec.options$covariates.sim.model,
-      markovian = vec.options$markovian,
-      num_steps = vec.options$num.steps
-    )
+    vec_options = vec.options
   )
 }
+
 
 #' Build a Spatial Weight Matrix
 #'

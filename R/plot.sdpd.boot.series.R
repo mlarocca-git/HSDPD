@@ -32,6 +32,7 @@
 #' `lambda_1`, `lambda_2`, and `fixed_effects`.
 #'
 #' @examples
+#' \dontrun{
 #' plot_sdpd_boot_series(
 #'   bb = 500,
 #'   pp = pp,
@@ -42,7 +43,7 @@
 #'   res_fit = res_fit,
 #'   group_index = group_index
 #' )
-#'
+#'}
 #' @export
 plot_sdpd_boot_series <- function(bb,
                                   pp,

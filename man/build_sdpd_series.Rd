@@ -97,6 +97,7 @@ or matrix, and using \code{\link[=read_data_from_raster]{read_data_from_raster()
 class \code{SpatRaster}.
 }
 \examples{
+\dontrun{
 series <- build_sdpd_series(
   px = px,
   rr_y = rr_y,
@@ -109,6 +110,7 @@ simulated_series <- build_sdpd_series(
   sim = TRUE,
   nn = 50
 )
+}
 
 }
 \seealso{

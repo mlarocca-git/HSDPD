@@ -28,13 +28,14 @@
 #' coefficient estimates are set to `NA`.
 #'
 #' @examples
+#' \dontrun{
 #' coeffs <- fit_sdpd_coefficients(
 #'   ww = ww,
 #'   covs = covs,
 #'   mu = mu,
 #'   model = model
 #' )
-#'
+#'}
 #' @seealso [build_sdpd_model()]
 #'
 #' @export

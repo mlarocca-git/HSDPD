@@ -50,12 +50,13 @@ values after the selected location has been filtered.
 Numeric time labels are converted to dates using \code{\link[=as.Date]{as.Date()}}.
 }
 \examples{
+\dontrun{
 plot_sdpd_series(
   rr_y = rr_y,
   lat = 45.1,
   lon = 9.2
 )
-
+}
 }
 \seealso{
 \code{\link[ggplot2:ggplot]{ggplot2::ggplot()}}

@@ -40,13 +40,14 @@ If the local normal-equation matrix is not invertible, the corresponding
 coefficient estimates are set to \code{NA}.
 }
 \examples{
+\dontrun{
 coeffs <- fit_sdpd_coefficients(
   ww = ww,
   covs = covs,
   mu = mu,
   model = model
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_model]{build_sdpd_model()}}

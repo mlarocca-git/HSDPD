@@ -67,6 +67,7 @@ covariates are simulated as stationary ARIMA processes using
 deterministic time trend.
 }
 \examples{
+\dontrun{
 simulated_data <- generate_sdpd_series(
   nn = 50,
   rr_y = NULL,
@@ -76,7 +77,7 @@ simulated_data <- generate_sdpd_series(
   num_steps = 10,
   covariates_sim_model = list(ar = c(0.8), sd = 1)
 )
-
+}
 }
 \seealso{
 \code{\link[=build_sdpd_model]{build_sdpd_model()}}, \code{\link[=check_sdpd_series]{check_sdpd_series()}},

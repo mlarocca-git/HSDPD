@@ -39,9 +39,15 @@
 #'   byrow = TRUE
 #' )
 #'
-#' rownames(ww_index) <- colnames(ww_index) <- c("1", "2", "3")
+#' rownames(ww_index) <- c("1", "2", "3")
+#' rownames(ww_values) <- c("1", "2", "3")
 #'
-#' build_spatial_matrix(ww_index, ww_values)
+#' ww <- build_spatial_matrix(
+#'   ww_index = ww_index,
+#'   ww_values = ww_values
+#' )
+#'
+#' ww
 #'
 #' @export
 build_spatial_matrix <- function(ww_index, ww_values) {

@@ -32,6 +32,7 @@
 #' assembled by [fit_sdpd_assemble()].
 #'
 #' @examples
+#' \dontrun{
 #' fit <- fit_sdpd_model(
 #'   series = series,
 #'   model = model
@@ -42,7 +43,7 @@
 #'   model = model,
 #'   parallelize = TRUE
 #' )
-#'
+#'}
 #' @seealso
 #' [build_sdpd_series()],
 #' [build_sdpd_model()],
@@ -61,7 +62,7 @@ fit_sdpd_model <- function(series,
   if (parallelize) {
     # Build a list of SDP-D series objects on parallelized groups.
     data_frame_data <- parallelize_sdpd_data(
-      series = series,
+      series_object = series,
       model = model
     )
   } else {

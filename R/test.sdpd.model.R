@@ -49,13 +49,14 @@
 #' where `s^*` is the bootstrap standard deviation.
 #'
 #' @examples
+#' \dontrun{
 #' test_result <- test_sdpd_model(
 #'   res_fit = fit,
 #'   px = fit$px,
 #'   h0 = "zero",
 #'   n_boot = 399
 #' )
-#'
+#'}
 #' @seealso
 #' [check_sdpd_model()],
 #' [fit_sdpd_series()],

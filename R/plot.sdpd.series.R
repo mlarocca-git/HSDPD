@@ -25,12 +25,13 @@
 #' Numeric time labels are converted to dates using [as.Date()].
 #'
 #' @examples
+#' \dontrun{
 #' plot_sdpd_series(
 #'   rr_y = rr_y,
 #'   lat = 45.1,
 #'   lon = 9.2
 #' )
-#'
+#'}
 #' @seealso [ggplot2::ggplot()]
 #'
 #' @export
@@ -43,11 +44,11 @@ plot_sdpd_series <- function(rr_y,
                              xlab = NULL,
                              ylab = NULL) {
   selected_series <- rr_y |>
-    dplyr::mutate(latitude_rounded = round(latitude, n_digits)) |>
-    dplyr::mutate(longitude_rounded = round(longitude, n_digits)) |>
+    dplyr::mutate(latitude_rounded = round(.data$latitude, n_digits)) |>
+    dplyr::mutate(longitude_rounded = round(.data$longitude, n_digits)) |>
     dplyr::filter(
-      latitude_rounded == round(lat, n_digits),
-      longitude_rounded == round(lon, n_digits)
+      .data$latitude_rounded == round(lat, n_digits),
+      .data$longitude_rounded == round(lon, n_digits)
     ) |>
     dplyr::select(
       -dplyr::any_of(c(
@@ -78,8 +79,8 @@ plot_sdpd_series <- function(rr_y,
   )
 
   result <- plot_data |>
-    ggplot2::ggplot(ggplot2::aes(x = time)) +
-    ggplot2::geom_line(ggplot2::aes(y = series, color = "Series")) +
+    ggplot2::ggplot(ggplot2::aes(x = .data$time)) +
+    ggplot2::geom_line(ggplot2::aes(y = .data$series, color = "Series")) +
     ggplot2::guides(x = ggplot2::guide_axis(angle = 0)) +
     ggplot2::theme(legend.position = "bottom") +
     ggplot2::scale_y_continuous(name = ylab) +

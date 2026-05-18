@@ -23,11 +23,12 @@
 #' full series, covariates, coordinates, spatial weights, and neighbor structure.
 #'
 #' @examples
+#' \dontrun{
 #' grouped_series <- parallelize_sdpd_data(
 #'   series_object = series,
 #'   model = model
 #' )
-#'
+#'}
 #' @seealso [build_sdpd_series()], [fit_sdpd_model()]
 #'
 #' @export
@@ -38,29 +39,30 @@ parallelize_sdpd_data <- function(series_object, model) {
   if (n_groups > 1) {
     px <- series_object$px
 
-    group_data <- tibble::tibble(
-      group = series_object$group[as.character(px), ],
-      px = as.numeric(px)
+  group_data <- tibble::tibble(
+    group_code = series_object$group[as.character(px), "COD"],
+    group_label = series_object$group[as.character(px), "LABEL"],
+    px = as.numeric(px)
     ) |>
-      dplyr::group_by(group) |>
-      tidyr::nest()
+  dplyr::group_by(.data$group_code, .data$group_label) |>
+  tidyr::nest()
 
     # For each group of pixels, prepare data and quantities for H-SDPD model
     # estimation.
-    data_frame_data <- purrr::map(
-      group_data$data,
-      build_sdpd_series,
-      rr_y = series_object$series,
-      rr_xx = series_object$xx,
-      lon = series_object$lon,
-      lat = series_object$lat,
-      rr_groups = series_object$group,
-      model = model,
-      check = FALSE,
-      ww_index = series_object$ww_index,
-      ww_values = series_object$ww_values,
-      px_neighbors = series_object$px_neighbors
-    )
+  data_frame_data <- purrr::map(
+    group_data$data,
+    build_sdpd_series,
+    rr_y = series_object$series,
+    rr_xx = series_object$xx,
+    lon = series_object$lon,
+    lat = series_object$lat,
+    rr_groups = series_object$group,
+    model = model,
+    check = FALSE,
+    ww_index = series_object$ww_index,
+    ww_values = series_object$ww_values,
+    px_neighbors = series_object$px_neighbors
+)
   } else {
     cat("\nWarning: no parallelization has been performed because there is only one group.")
 

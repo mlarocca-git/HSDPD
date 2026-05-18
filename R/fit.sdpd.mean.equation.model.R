@@ -38,6 +38,7 @@
 #' time-weighted means.
 #'
 #' @examples
+#' \dontrun{
 #' mean_equation <- fit_sdpd_mean_equation_model(
 #'   result = result,
 #'   ww = ww
@@ -49,6 +50,7 @@
 #'   time_weights = time_weights,
 #'   index_weights = index_weights
 #' )
+#'}
 #'
 #' @export
 fit_sdpd_mean_equation_model <- function(result,

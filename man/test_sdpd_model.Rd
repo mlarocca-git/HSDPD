@@ -74,13 +74,14 @@ The test uses a normal basic bootstrap approximation:
 where \verb{s^*} is the bootstrap standard deviation.
 }
 \examples{
+\dontrun{
 test_result <- test_sdpd_model(
   res_fit = fit,
   px = fit$px,
   h0 = "zero",
   n_boot = 399
 )
-
+}
 }
 \seealso{
 \code{\link[=check_sdpd_model]{check_sdpd_model()}},

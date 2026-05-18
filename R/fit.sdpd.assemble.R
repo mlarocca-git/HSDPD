@@ -40,8 +40,9 @@
 #' and returns `NULL`.
 #'
 #' @examples
+#' \dontrun{
 #' assembled_result <- fit_sdpd_assemble(obj_stime)
-#'
+#'}
 #' @seealso [p.adjust()]
 #'
 #' @export
@@ -56,13 +57,13 @@ fit_sdpd_assemble <- function(obj_stime) {
     names(px) <- indices
 
     mean_resid <- apply(obj_stime$resid, 1, mean, na.rm = TRUE)
-    sd_resid <- apply(obj_stime$resid, 1, sd, na.rm = TRUE)
+    sd_resid <- apply(obj_stime$resid, 1, stats::sd, na.rm = TRUE)
 
     pvalue_lb <- apply(obj_stime$resid, 1, fun_lb_test)
-    pvalue_lb <- p.adjust(pvalue_lb, method = "BY")
+    pvalue_lb <- stats::p.adjust(pvalue_lb, method = "BY")
 
     pvalue_jb <- apply(obj_stime$resid, 1, fun_jb_test)
-    pvalue_jb <- p.adjust(pvalue_jb, method = "BY")
+    pvalue_jb <- stats::p.adjust(pvalue_jb, method = "BY")
 
     eigen_a <- round(
       rep(obj_stime$diagnostics, dim(obj_stime$resid)[1]),

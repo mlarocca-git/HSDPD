@@ -35,6 +35,7 @@
 #' `method = "BY"`.
 #'
 #' @examples
+#' \dontrun{
 #' plot_stat_discrete_resids(
 #'   results = fit,
 #'   statistic = mean,
@@ -48,7 +49,7 @@
 #'   by_adjusted = TRUE,
 #'   alpha = 0.05
 #' )
-#'
+#'}
 #' @seealso [ggplot2::ggplot()], [stats::p.adjust()]
 #'
 #' @export
@@ -98,7 +99,7 @@ plot_stat_discrete_resids <- function(results,
 
     result <- ggplot2::ggplot(
       plot_data,
-      ggplot2::aes(x = lon, y = lat, colour = value)
+      ggplot2::aes(x = .data$lon, y = .data$lat, colour = .data$value)
     ) +
       ggplot2::geom_point(size = size_point) +
       ggplot2::guides(fill = "none") +
@@ -111,7 +112,7 @@ plot_stat_discrete_resids <- function(results,
   } else {
     result <- ggplot2::ggplot(
       plot_data,
-      ggplot2::aes(x = lon, y = lat, colour = value)
+      ggplot2::aes(x = .data$lon, y = .data$lat, colour = .data$value)
     ) +
       ggplot2::geom_point(size = size_point) +
       ggplot2::guides(fill = "none") +

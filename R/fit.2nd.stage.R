@@ -29,6 +29,7 @@
 #' term and updates both beta coefficients and `fixed_effects`.
 #'
 #' @examples
+#' \dontrun{
 #' coeff_hat <- fit_second_stage(
 #'   data_series = data_series,
 #'   x_centered = x_centered,
@@ -36,7 +37,7 @@
 #'   model = model,
 #'   coeff_hat = coeff_hat
 #' )
-#'
+#'}
 #' @seealso [build_sdpd_model()]
 #'
 #' @export

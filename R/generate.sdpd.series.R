@@ -44,6 +44,7 @@
 #' deterministic time trend.
 #'
 #' @examples
+#' \dontrun{
 #' simulated_data <- generate_sdpd_series(
 #'   nn = 50,
 #'   rr_y = NULL,
@@ -53,7 +54,7 @@
 #'   num_steps = 10,
 #'   covariates_sim_model = list(ar = c(0.8), sd = 1)
 #' )
-#'
+#'}
 #' @seealso [build_sdpd_model()], [check_sdpd_series()],
 #'   [build_spatial_matrix()], [fit_sdpd_series()], [stats::arima.sim()]
 #'
