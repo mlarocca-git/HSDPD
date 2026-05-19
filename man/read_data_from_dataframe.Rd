@@ -82,18 +82,42 @@ is named \code{xx}, not \code{X}, and the boundary component is named
 \code{series_boundary}, not \code{seriesBoundary}.
 }
 \examples{
-\dontrun{
+rr_y <- matrix(
+  c(1, 2, 3,
+    2, 3, 4,
+    3, 4, 5),
+  nrow = 3,
+  byrow = TRUE
+)
+rownames(rr_y) <- colnames(rr_y) <- c("1", "2", "3")
+
+ww_index <- matrix(
+  c(2, 3,
+    1, 3,
+    1, 2),
+  nrow = 3,
+  byrow = TRUE,
+  dimnames = list(c("1", "2", "3"), NULL)
+)
+ww_values <- matrix(
+  0.5,
+  nrow = 3,
+  ncol = 2,
+  dimnames = list(c("1", "2", "3"), NULL)
+)
+px_neighbors <- list(index = ww_index)
+model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE)
+
 series_object <- read_data_from_dataframe(
-  px = px,
+  px = c("1", "2", "3"),
   rr_y = rr_y,
-  rr_xx = rr_xx,
-  rr_groups = groups,
   model = model,
   ww_index = ww_index,
   ww_values = ww_values,
   px_neighbors = px_neighbors
 )
-}
+
+names(series_object)
 }
 \seealso{
 \code{\link[=build_sdpd_series]{build_sdpd_series()}}

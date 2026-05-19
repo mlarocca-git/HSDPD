@@ -7,3 +7,6 @@
 inst/doc
 /doc/
 /Meta/
+.Rcheck/
+..Rcheck/
+*.tar.gz

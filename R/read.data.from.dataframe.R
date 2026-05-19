@@ -1,3 +1,136 @@
+.new_sdpd_data <- function(series,
+                           px,
+                           lat = NULL,
+                           lon = NULL,
+                           rr_xx = NULL,
+                           rr_groups = NULL) {
+  structure(
+    list(
+      series = series,
+      px = px,
+      lat = lat,
+      lon = lon,
+      rr_xx = rr_xx,
+      rr_groups = rr_groups
+    ),
+    class = "sdpd_data"
+  )
+}
+
+.validate_sdpd_dataframe_input <- function(px,
+                                           lat = NULL,
+                                           lon = NULL,
+                                           rr_y,
+                                           rr_xx = NULL,
+                                           rr_groups = NULL) {
+  if (!is.data.frame(rr_y) && !is.matrix(rr_y)) {
+    return(list(error = "The rr_y argument must be a data frame or matrix."))
+  }
+
+  rr_y <- as.matrix(rr_y)
+
+  if (is.null(dimnames(rr_y)[[1]])) {
+    return(list(error = "Row names, i.e. locations, must be defined in rr_y."))
+  }
+
+  if (is.null(px)) {
+    px <- dimnames(rr_y)[[1]]
+  }
+
+  px <- as.character(px)
+  indices_all <- dimnames(rr_y)[[1]]
+
+  if (sum(px %in% indices_all) < length(px)) {
+    return(list(error = "Some px values are not contained in the rr_y data frame."))
+  }
+
+  if (is.null(dimnames(rr_y)[[2]])) {
+    latitude_column <- numeric(0)
+    longitude_column <- numeric(0)
+  } else {
+    latitude_column <- which(dimnames(rr_y)[[2]] == "latitude")
+    longitude_column <- which(dimnames(rr_y)[[2]] == "longitude")
+  }
+
+  coordinates_from_columns <- FALSE
+
+  if (length(latitude_column) != 0 && length(longitude_column) != 0) {
+    lat <- rr_y[px, latitude_column]
+    lon <- rr_y[px, longitude_column]
+
+    names(lat) <- px
+    names(lon) <- px
+
+    rr_y <- rr_y[, -c(latitude_column, longitude_column), drop = FALSE]
+    coordinates_from_columns <- TRUE
+  } else if (length(latitude_column) != 0 || length(longitude_column) != 0) {
+    rr_y <- rr_y[, -c(latitude_column, longitude_column), drop = FALSE]
+  }
+
+  if (is.null(lat) || is.null(lon)) {
+    lat <- NULL
+    lon <- NULL
+  } else if (coordinates_from_columns) {
+    lat <- as.numeric(lat)
+    lon <- as.numeric(lon)
+
+    names(lat) <- px
+    names(lon) <- px
+  } else if (is.numeric(lat) && is.numeric(lon)) {
+    if (length(lat) == 1 && length(lon) == 1) {
+      temp_lat <- rr_y[px, lat]
+      temp_lon <- rr_y[px, lon]
+
+      names(temp_lat) <- px
+      names(temp_lon) <- px
+
+      rr_y <- rr_y[, -c(lat, lon), drop = FALSE]
+
+      lat <- temp_lat
+      lon <- temp_lon
+    } else if (length(lat) == dim(rr_y)[1] &&
+               length(lon) == dim(rr_y)[1]) {
+      if (is.null(names(lat))) {
+        names(lat) <- dimnames(rr_y)[[1]]
+      }
+
+      if (is.null(names(lon))) {
+        names(lon) <- dimnames(rr_y)[[1]]
+      }
+
+      lat <- lat[px]
+      lon <- lon[px]
+    } else {
+      return(list(error = "Latitude and longitude values do not have the expected format or length."))
+    }
+  } else {
+    return(list(error = "Latitude and longitude values do not have the expected format or length."))
+  }
+
+  if (!is.null(rr_groups)) {
+    if (!is.data.frame(rr_groups) && !is.matrix(rr_groups)) {
+      return(list(error = "The rr_groups argument must be a data frame or matrix."))
+    }
+
+    if (dim(rr_groups)[1] != dim(rr_y)[1]) {
+      return(list(error = "The rr_groups object must have the same number of rows as rr_y."))
+    }
+
+    if (sum(c("COD", "LABEL") %in% dimnames(rr_groups)[[2]]) < 2) {
+      return(list(error = "The rr_groups object must contain the columns COD and LABEL."))
+    }
+  }
+
+  .new_sdpd_data(
+    series = rr_y,
+    px = px,
+    lat = lat,
+    lon = lon,
+    rr_xx = rr_xx,
+    rr_groups = rr_groups
+  )
+}
+
 #' Read SDP-D Data from a Data Frame or Matrix
 #'
 #' Extracts and organizes SDP-D input data from a data frame or matrix.
@@ -53,18 +186,42 @@
 #' `series_boundary`, not `seriesBoundary`.
 #'
 #' @examples
-#' \dontrun{
+#' rr_y <- matrix(
+#'   c(1, 2, 3,
+#'     2, 3, 4,
+#'     3, 4, 5),
+#'   nrow = 3,
+#'   byrow = TRUE
+#' )
+#' rownames(rr_y) <- colnames(rr_y) <- c("1", "2", "3")
+#'
+#' ww_index <- matrix(
+#'   c(2, 3,
+#'     1, 3,
+#'     1, 2),
+#'   nrow = 3,
+#'   byrow = TRUE,
+#'   dimnames = list(c("1", "2", "3"), NULL)
+#' )
+#' ww_values <- matrix(
+#'   0.5,
+#'   nrow = 3,
+#'   ncol = 2,
+#'   dimnames = list(c("1", "2", "3"), NULL)
+#' )
+#' px_neighbors <- list(index = ww_index)
+#' model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE)
+#'
 #' series_object <- read_data_from_dataframe(
-#'   px = px,
+#'   px = c("1", "2", "3"),
 #'   rr_y = rr_y,
-#'   rr_xx = rr_xx,
-#'   rr_groups = groups,
 #'   model = model,
 #'   ww_index = ww_index,
 #'   ww_values = ww_values,
 #'   px_neighbors = px_neighbors
 #' )
-#'}
+#'
+#' names(series_object)
 #' @seealso [build_sdpd_series()]
 #'
 #' @export
@@ -82,79 +239,25 @@ read_data_from_dataframe <- function(px,
   # The function returns the spatio-temporal series, close-neighbor information,
   # spatial weights, and optional regressors.
 
-  if (!is.data.frame(rr_y) && !is.matrix(rr_y)) {
-    return(list(error = "The rr_y argument must be a data frame or matrix."))
+  input_data <- .validate_sdpd_dataframe_input(
+    px = px,
+    lat = lat,
+    lon = lon,
+    rr_y = rr_y,
+    rr_xx = rr_xx,
+    rr_groups = rr_groups
+  )
+
+  if (!is.null(input_data$error)) {
+    return(input_data)
   }
 
-  rr_y <- as.matrix(rr_y)
-
-  if (is.null(dimnames(rr_y)[[1]])) {
-    return(list(error = "Row names, i.e. locations, must be defined in rr_y."))
-  }
-
-  if (is.null(px)) {
-    px <- dimnames(rr_y)[[1]]
-  }
-
-  indices_all <- dimnames(rr_y)[[1]]
-
-  if (is.null(dimnames(rr_y)[[2]])) {
-    latitude_column <- numeric(0)
-    longitude_column <- numeric(0)
-  } else {
-    latitude_column <- which(dimnames(rr_y)[[2]] == "latitude")
-    longitude_column <- which(dimnames(rr_y)[[2]] == "longitude")
-  }
-
-  if (length(latitude_column) != 0 && length(longitude_column) != 0) {
-    lat <- rr_y[as.character(px), latitude_column]
-    lon <- rr_y[as.character(px), longitude_column]
-
-    names(lat) <- px
-    names(lon) <- px
-
-    rr_y <- rr_y[, -c(latitude_column, longitude_column)]
-  } else if (length(latitude_column) != 0 || length(longitude_column) != 0) {
-    rr_y <- rr_y[, -c(latitude_column, longitude_column)]
-  }
-
-  if (is.null(lat) || is.null(lon)) {
-    lat <- NULL
-    lon <- NULL
-  } else if (is.numeric(lat) && is.numeric(lon)) {
-    if (length(lat) == 1 && length(lon) == 1) {
-      temp_lat <- rr_y[as.character(px), lat]
-      temp_lon <- rr_y[as.character(px), lon]
-
-      names(temp_lat) <- px
-      names(temp_lon) <- px
-
-      rr_y <- rr_y[, -c(lat, lon)]
-
-      lat <- temp_lat
-      lon <- temp_lon
-    } else if (length(lat) == dim(rr_y)[1] &&
-               length(lon) == dim(rr_y)[1]) {
-      if (is.null(names(lat))) {
-        names(lat) <- dimnames(rr_y)[[1]]
-      }
-
-      if (is.null(names(lon))) {
-        names(lon) <- dimnames(rr_y)[[1]]
-      }
-
-      lat <- lat[as.character(px)]
-      lon <- lon[as.character(px)]
-    } else {
-      return(list(error = "Latitude and longitude values do not have the expected format or length."))
-    }
-  } else {
-    return(list(error = "Latitude and longitude values do not have the expected format or length."))
-  }
-
-  if (sum(as.character(px) %in% indices_all) < length(px)) {
-    return(list(error = "Some px values are not contained in the rr_y data frame."))
-  }
+  rr_y <- input_data$series
+  px <- input_data$px
+  lat <- input_data$lat
+  lon <- input_data$lon
+  rr_xx <- input_data$rr_xx
+  rr_groups <- input_data$rr_groups
 
   # Derive close-neighbor series.
   if (is.null(ww_index) || is.null(ww_values)) {
@@ -364,6 +467,3 @@ read_data_from_dataframe <- function(px,
     group = groups
   )
 }
-
-
-

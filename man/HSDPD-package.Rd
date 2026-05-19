@@ -15,7 +15,7 @@ hierarchical spatial dynamic panel data models.
 Authors:
 \itemize{
   \item Michele La Rocca \email{larocca@unisa.it}
-  \item Maria Lucia Parrella \email{mparrel@exaunisa.it}
+  \item Maria Lucia Parrella \email{mparrel@unisa.it}
 }
 
 Other contributors:

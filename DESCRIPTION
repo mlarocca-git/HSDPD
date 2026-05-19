@@ -4,10 +4,15 @@ Title: Heterogeneous Spatio-Temporal Dynamic Panel Data Models
 Version: 0.0.0.9000
 Authors@R: c(
     person("Michele", "La Rocca", email = "larocca@unisa.it", role = c("aut", "cre")),
-    person("Maria Lucia", "Parrella", email = "mparrel@exaunisa.it", role = "aut"),
+    person("Maria Lucia", "Parrella", email = "mparrel@unisa.it", role = "aut"),
     person("Francesco", "Giordano", email = "giordano@unisa.it", role = "ctb"),
     person("Cira", "Perna", email = "perna@unisa.it", role = "ctb")
     )
+Author: Michele La Rocca [aut, cre],
+    Maria Lucia Parrella [aut],
+    Francesco Giordano [ctb],
+    Cira Perna [ctb]
+Maintainer: Michele La Rocca <larocca@unisa.it>
 Description: Tools for building, simulating, estimating, testing, and plotting
     hierarchical spatial dynamic panel data models. The package provides
     utilities for constructing SDP-D model objects, reading spatio-temporal
@@ -37,3 +42,4 @@ Suggests:
 Config/testthat/edition: 3
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
+
