@@ -178,6 +178,18 @@ test_that("test_sdpd_model public bootstrap result structure remains stable", {
     "max_mod_eigen_a"
   ) %in% names(result$diagnostics_model)))
   expect_equal(
+    dim(result$diagnostics_coeff_boot),
+    c(4, dim(res_fit$coeff_hat))
+  )
+  expect_equal(
+    dimnames(result$diagnostics_coeff_boot)[[2]],
+    rownames(res_fit$coeff_hat)
+  )
+  expect_equal(
+    dimnames(result$diagnostics_coeff_boot)[[3]],
+    colnames(res_fit$coeff_hat)
+  )
+  expect_equal(
     dim(result$diagnostics_sdevs_tsboot),
     c(nrow(res_fit$data$series), 2)
   )

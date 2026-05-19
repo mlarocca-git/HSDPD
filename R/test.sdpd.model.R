@@ -210,11 +210,9 @@ test_sdpd_model <- function(res_fit,
     boot_design$series <- yy_star_1
     covs <- .fit_sdpd_covs_from_design(boot_design)
 
-    boot_rep[bb, , ] <- fit_sdpd_coefficients(
-      ww = res_fit$data$ww,
-      covs = covs,
-      mu = data$mu,
-      model = model_obj
+    boot_rep[bb, , ] <- .fit_sdpd_coefficients_from_design(
+      design = boot_design,
+      covs = covs
     )$coeff_hat
 
     devs_tsboot[bb, , ] <- apply(
