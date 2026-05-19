@@ -1,3 +1,12 @@
+.fit_sdpd_coefficients_from_design <- function(design, covs) {
+  fit_sdpd_coefficients(
+    ww = design$ww,
+    covs = covs,
+    mu = design$mu,
+    model = design$model
+  )
+}
+
 #' Estimate SDP-D Coefficients
 #'
 #' Estimates the first-stage SDP-D model coefficients using spatial covariance
@@ -194,6 +203,5 @@ fit_sdpd_coefficients <- function(ww, covs, mu, model) {
   # Estimation results.
   list(coeff_hat = coeff_hat)
 }
-
 
 
