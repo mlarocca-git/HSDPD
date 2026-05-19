@@ -193,20 +193,18 @@ test_sdpd_model <- function(res_fit,
     residual_boot <- residuals[, boot_index[bb, ], drop = FALSE]
 
     yy_star_1 <- res_fit$data$series
+    boot_design <- design
 
     for (step in seq_len(5)) {
-      yy_star_1 <- fit_sdpd_series(
-        data_series = yy_star_1,
-        ww = res_fit$data$ww,
-        x_centered = res_fit$data$xx,
-        model = model_obj,
+      boot_design$series <- yy_star_1
+      yy_star_1 <- .fit_sdpd_series_from_design(
+        design = boot_design,
         coeff_hat = res_fit$coeff_hat,
         resids = residual_boot,
         markovian = boot_options$markovian
       )$series
     }
 
-    boot_design <- design
     boot_design$series <- yy_star_1
     covs <- .fit_sdpd_covs_from_design(boot_design)
 

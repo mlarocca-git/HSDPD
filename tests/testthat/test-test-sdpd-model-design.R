@@ -193,4 +193,12 @@ test_that("test_sdpd_model public bootstrap result structure remains stable", {
     dim(result$diagnostics_sdevs_tsboot),
     c(nrow(res_fit$data$series), 2)
   )
+  expect_equal(
+    rownames(result$diagnostics_sdevs_tsboot),
+    rownames(res_fit$data$series)
+  )
+  expect_equal(
+    colnames(result$diagnostics_sdevs_tsboot),
+    c("mean", "sd")
+  )
 })
