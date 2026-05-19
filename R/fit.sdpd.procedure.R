@@ -70,57 +70,38 @@ fit_sdpd_procedure <- function(series,
     return(NULL)
   }
 
-  # Check validity of data.
-  data <- check_sdpd_series(
-    series = series$series,
-    ww_index = series$ww_index,
-    ww_values = series$ww_values,
-    xx = series$xx,
-    model = model,
-    px_neighbors = series$px_neighbors,
-    px = series$px,
-    lat = series$lat,
-    lon = series$lon,
-    group = series$group,
-    index_weights = series$index_weights,
-    time_weights = series$time_weights
-  )
+  # Check validity of data and construct the internal numeric design.
+  design <- .as_sdpd_design(series = series, model = model)
 
-  if (length(data$errors) > 0) {
-    cat("\nThere are errors in the series:\n", data$errors)
+  if (length(design$errors) > 0) {
+    cat("\nThere are errors in the series:\n", design$errors)
     return(list(
-      errors = data$errors,
-      warnings = data$warnings
+      errors = design$errors,
+      warnings = design$warnings
     ))
   }
 
   covs <- fit_sdpd_covs(
-    series = data$series,
-    x = data$xx,
-    px_neighbors = data$px_neighbors,
-    kk = data$kk,
-    nn = data$nn,
-    pp = data$pp,
+    series = design$series,
+    x = design$x,
+    px_neighbors = design$px_neighbors,
+    kk = design$kk,
+    nn = design$nn,
+    pp = design$pp,
     na_covs = na_covs
-  )
-
-  # Build spatial weights.
-  ww <- build_spatial_matrix(
-    ww_index = data$ww_index,
-    ww_values = data$ww_values
   )
 
   # Estimate model parameters.
   fit <- fit_sdpd_coefficients(
-    ww = ww,
+    ww = design$ww,
     covs = covs,
-    mu = data$mu,
+    mu = design$mu,
     model = model
   )
 
   if (sum(is.na(fit$coeff_hat)) > 0) {
-    data$warnings <- c(
-      data$warnings,
+    design$warnings <- c(
+      design$warnings,
       "There are NA values in the estimated coefficients."
     )
     cat("\nThere are NA values in the estimated coefficients.\n")
@@ -129,9 +110,9 @@ fit_sdpd_procedure <- function(series,
   # Second-stage estimation.
   if (two_stage) {
     fit$coeff_hat <- fit_second_stage(
-      data_series = data$series,
-      ww = ww,
-      x_centered = data$xx,
+      data_series = design$series,
+      ww = design$ww,
+      x_centered = design$x,
       model = model,
       coeff_hat = fit$coeff_hat
     )
@@ -139,34 +120,34 @@ fit_sdpd_procedure <- function(series,
 
   # Estimate fitted values.
   fitted_result <- fit_sdpd_series(
-    data_series = data$series,
-    ww = ww,
-    x_centered = data$xx,
+    data_series = design$series,
+    ww = design$ww,
+    x_centered = design$x,
     model = model,
     coeff_hat = fit$coeff_hat,
-    time_effects = data$time_effects
+    time_effects = design$time_effects
   )
 
   # Estimate the mean-equation meta-model.
   mean_equation <- fit_sdpd_mean_equation_model(
     result = fitted_result,
-    ww = ww,
-    time_weights = data$time_weights,
-    index_weights = data$index_weights
+    ww = design$ww,
+    time_weights = design$time_weights,
+    index_weights = design$index_weights
   )
 
   result <- list(
-    px = data$px,
-    lon = data$lon,
-    lat = data$lat,
-    group = data$group,
+    px = design$source_px,
+    lon = design$lon,
+    lat = design$lat,
+    group = design$group,
     coeff_hat = fit$coeff_hat,
     fitted = fitted_result$fitted,
     resid = fitted_result$resid,
     mean_equation = mean_equation,
-    time_effects = data$time_effects,
+    time_effects = design$time_effects,
     model = model,
-    warnings = data$warnings
+    warnings = design$warnings
   )
 
   # Check stationarity conditions for the estimated model.
@@ -175,8 +156,8 @@ fit_sdpd_procedure <- function(series,
   if (check) {
     diagnostics <- check_sdpd_model(
       res_fit = result,
-      ww_index = data$ww_index,
-      ww_values = data$ww_values
+      ww_index = design$ww_index,
+      ww_values = design$ww_values
     )$diagnostics[1, "max_mod_eigen_a"]
   }
 
@@ -184,4 +165,3 @@ fit_sdpd_procedure <- function(series,
   result$diagnostics <- diagnostics
   result
 }
-

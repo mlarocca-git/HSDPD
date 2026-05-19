@@ -122,13 +122,11 @@
   )
 
   if (length(checked$errors) > 0) {
-    design <- .new_sdpd_design(
+    return(.new_sdpd_design(
       model = model,
       errors = checked$errors,
       warnings = checked$warnings
-    )
-
-    return(.validate_sdpd_design(design))
+    ))
   }
 
   ww <- build_spatial_matrix(
