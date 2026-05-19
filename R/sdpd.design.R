@@ -52,12 +52,19 @@
 .validate_sdpd_design <- function(design) {
   errors <- design$errors
   warnings <- design$warnings
+  model_beta_names <- NULL
+  model_kk <- NULL
 
   if (!inherits(design, "sdpd_design")) {
     errors <- c(errors, "The design object must inherit from class sdpd_design.")
     design$errors <- errors
     design$warnings <- warnings
     return(design)
+  }
+
+  if (!is.null(design$model) && !is.null(design$model$beta_coeffs)) {
+    model_kk <- sum(design$model$beta_coeffs)
+    model_beta_names <- names(design$model$beta_coeffs)[design$model$beta_coeffs]
   }
 
   if (!is.matrix(design$series) || !is.numeric(design$series)) {
@@ -74,17 +81,76 @@
     if (!identical(ncol(design$series), design$nn)) {
       errors <- c(errors, "The design nn value must match ncol(series).")
     }
+
+    if (is.null(design$unit_index)) {
+      errors <- c(errors, "The design unit_index must not be NULL.")
+    } else if (!identical(rownames(design$series), design$unit_index)) {
+      errors <- c(errors, "The design unit_index must match rownames(series).")
+    }
+
+    if (is.null(design$time_index)) {
+      errors <- c(errors, "The design time_index must not be NULL.")
+    } else if (!identical(colnames(design$series), design$time_index)) {
+      errors <- c(errors, "The design time_index must match colnames(series).")
+    }
   }
 
-  if (!is.null(design$x)) {
-    if (design$kk == 1 && !is.matrix(design$x)) {
-      errors <- c(errors, "A one-covariate design must store x as a matrix.")
+  if (!is.null(model_kk) && !isTRUE(design$kk == model_kk)) {
+    errors <- c(errors, "The design kk value must match the model covariate count.")
+  }
+
+  if (!is.null(design$kk) && length(design$kk) == 1) {
+    if (design$kk == 0 && !is.null(design$x)) {
+      errors <- c(errors, "A zero-covariate design must store x as NULL.")
     }
 
-    if (design$kk > 1 &&
-        (!is.array(design$x) || length(dim(design$x)) != 3)) {
-      errors <- c(errors, "A multi-covariate design must store x as a three-dimensional array.")
+    if (design$kk > 0 && is.null(design$x)) {
+      errors <- c(errors, "A covariate design must include x.")
     }
+
+    if (design$kk == 1 && !is.null(design$x)) {
+      if (!is.matrix(design$x)) {
+        errors <- c(errors, "A one-covariate design must store x as a matrix.")
+      } else {
+        if (!all(dim(design$x) == c(design$pp, design$nn))) {
+          errors <- c(errors, "A one-covariate design x matrix must have dimensions pp by nn.")
+        }
+
+        if (!identical(rownames(design$x), design$unit_index)) {
+          errors <- c(errors, "A one-covariate design x row names must match unit_index.")
+        }
+
+        if (!identical(colnames(design$x), design$time_index)) {
+          errors <- c(errors, "A one-covariate design x column names must match time_index.")
+        }
+      }
+    }
+
+    if (design$kk > 1 && !is.null(design$x)) {
+      if (!is.array(design$x) || length(dim(design$x)) != 3) {
+        errors <- c(errors, "A multi-covariate design must store x as a three-dimensional array.")
+      } else {
+        if (!all(dim(design$x)[2:3] == c(design$pp, design$nn))) {
+          errors <- c(errors, "A multi-covariate design x array must have dimensions covariates by pp by nn.")
+        }
+
+        if (!identical(dimnames(design$x)[[2]], design$unit_index)) {
+          errors <- c(errors, "A multi-covariate design x location names must match unit_index.")
+        }
+
+        if (!identical(dimnames(design$x)[[3]], design$time_index)) {
+          errors <- c(errors, "A multi-covariate design x time names must match time_index.")
+        }
+
+        if (!is.null(model_beta_names) &&
+            !is.null(dimnames(design$x)[[1]]) &&
+            !identical(dimnames(design$x)[[1]], model_beta_names)) {
+          errors <- c(errors, "A multi-covariate design x covariate names must match the model covariates.")
+        }
+      }
+    }
+  } else if (!is.null(design$x)) {
+    errors <- c(errors, "The design kk value must be defined when x is supplied.")
   }
 
   if (!is.null(design$ww)) {
@@ -96,13 +162,34 @@
     }
   }
 
-  if (!is.null(design$mu) && length(design$mu) != design$pp) {
-    errors <- c(errors, "The design mu vector must have length pp.")
+  if (!is.null(design$mu)) {
+    if (!is.numeric(design$mu)) {
+      errors <- c(errors, "The design mu vector must be numeric.")
+    }
+
+    if (length(design$mu) != design$pp) {
+      errors <- c(errors, "The design mu vector must have length pp.")
+    }
+
+    if (!is.null(names(design$mu)) &&
+        !identical(names(design$mu), design$unit_index)) {
+      errors <- c(errors, "The design mu names must match unit_index.")
+    }
   }
 
-  if (!is.null(design$time_effects) &&
-      length(design$time_effects) != design$nn) {
-    errors <- c(errors, "The design time_effects vector must have length nn.")
+  if (!is.null(design$time_effects)) {
+    if (!is.numeric(design$time_effects)) {
+      errors <- c(errors, "The design time_effects vector must be numeric.")
+    }
+
+    if (length(design$time_effects) != design$nn) {
+      errors <- c(errors, "The design time_effects vector must have length nn.")
+    }
+
+    if (!is.null(names(design$time_effects)) &&
+        !identical(names(design$time_effects), design$time_index)) {
+      errors <- c(errors, "The design time_effects names must match time_index.")
+    }
   }
 
   design$errors <- unique(errors)
