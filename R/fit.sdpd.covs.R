@@ -1,3 +1,16 @@
+.fit_sdpd_covs_from_design <- function(design,
+                                       na_covs = "pairwise.complete.obs") {
+  fit_sdpd_covs(
+    series = design$series,
+    x = design$x,
+    kk = design$kk,
+    px_neighbors = design$px_neighbors,
+    nn = design$nn,
+    pp = design$pp,
+    na_covs = na_covs
+  )
+}
+
 #' Compute SDP-D Covariance Components
 #'
 #' Computes covariance components used by the SDP-D coefficient-estimation
@@ -130,5 +143,4 @@ fit_sdpd_covs <- function(series,
     cov_x = cov_x
   )
 }
-
 
