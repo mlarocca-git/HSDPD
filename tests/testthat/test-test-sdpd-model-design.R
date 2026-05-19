@@ -80,6 +80,58 @@ make_test_sdpd_model_result <- function() {
   )
 }
 
+make_test_sdpd_model_covariate_result <- function() {
+  data <- make_test_sdpd_model_checked_data()
+  data$xx <- matrix(
+    c(0.20, -0.10, 0.30, 0.05, -0.20, 0.10,
+      -0.30, 0.40, -0.10, 0.20, 0.15, -0.05,
+      0.10, 0.25, -0.20, -0.15, 0.35, 0.05),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = dimnames(data$series)
+  )
+  data$kk <- 1
+
+  ww_index <- data$px_neighbors$index
+  ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 2,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  model <- build_sdpd_model(
+    lambda_0 = FALSE,
+    lambda_1 = TRUE,
+    lambda_2 = FALSE,
+    covariates = "x1",
+    fixed_effects = FALSE
+  )
+  model$ww_index <- ww_index
+  model$ww_values <- ww_values
+
+  coeff_hat <- matrix(
+    c(0.10, 0.15, 0.20,
+      0.02, -0.01, 0.015),
+    nrow = 3,
+    dimnames = list(c("1", "2", "3"), c("lambda_1", "x1"))
+  )
+  fitted <- fit_sdpd_series(
+    data_series = data$series,
+    ww = data$ww,
+    x_centered = data$xx,
+    model = model,
+    coeff_hat = coeff_hat
+  )
+
+  list(
+    model = model,
+    coeff_hat = coeff_hat,
+    fitted = fitted$fitted,
+    resid = fitted$resid,
+    data = data
+  )
+}
+
 test_that("test_sdpd_model design bridge builds a valid design object", {
   test_sdpd_design_from_checked_data <- getFromNamespace(
     ".test_sdpd_design_from_checked_data",
@@ -200,5 +252,101 @@ test_that("test_sdpd_model public bootstrap result structure remains stable", {
   expect_equal(
     colnames(result$diagnostics_sdevs_tsboot),
     c("mean", "sd")
+  )
+})
+
+test_that("test_sdpd_model bootstrap handles one covariate through design path", {
+  set.seed(20240520)
+  res_fit <- make_test_sdpd_model_covariate_result()
+
+  result <- test_sdpd_model(
+    res_fit = res_fit,
+    px = rownames(res_fit$data$series),
+    n_boot = 21,
+    h0 = "zero",
+    boot_options = list(
+      markovian = FALSE,
+      resid = "normal",
+      sigma_resid = 0.01,
+      boot_plot = FALSE,
+      folder = "",
+      y_limits = NULL,
+      label_index = NULL
+    )
+  )
+
+  expect_equal(result$coeff_hat, res_fit$coeff_hat)
+  expect_equal(dim(result$pvalue), dim(res_fit$coeff_hat))
+  expect_true("x1" %in% colnames(result$pvalue))
+  expect_true("x1" %in% dimnames(result$diagnostics_coeff_boot)[[3]])
+})
+
+test_that("test_sdpd_model noautoregressive branch remains public-compatible", {
+  set.seed(20240521)
+  res_fit <- make_test_sdpd_model_result()
+
+  result <- test_sdpd_model(
+    res_fit = res_fit,
+    px = rownames(res_fit$data$series),
+    n_boot = 21,
+    h0 = "noautoregressive",
+    boot_options = list(
+      markovian = FALSE,
+      resid = "normal",
+      sigma_resid = 0.01,
+      boot_plot = FALSE,
+      folder = "",
+      y_limits = NULL,
+      label_index = NULL
+    )
+  )
+
+  expect_equal(result$h0, "noautoregressive")
+  expect_equal(dim(result$pvalue), dim(res_fit$coeff_hat))
+  expect_equal(colnames(result$pvalue), "lambda_1")
+  expect_named(
+    result,
+    c(
+      "pvalue",
+      "n_boot",
+      "h0",
+      "diagnostics_model",
+      "coeff_hat",
+      "diagnostics_coeff_boot",
+      "diagnostics_sdevs_tsboot",
+      "warnings"
+    )
+  )
+})
+
+test_that("test_sdpd_model bootstrap numeric regression remains stable", {
+  set.seed(20240519)
+  res_fit <- make_test_sdpd_model_result()
+
+  result <- test_sdpd_model(
+    res_fit = res_fit,
+    px = rownames(res_fit$data$series),
+    n_boot = 21,
+    h0 = "zero",
+    boot_options = list(
+      markovian = FALSE,
+      resid = "normal",
+      sigma_resid = 0.01,
+      boot_plot = FALSE,
+      folder = "",
+      y_limits = NULL,
+      label_index = NULL
+    )
+  )
+
+  expect_equal(
+    result$pvalue["1", "lambda_1"],
+    0.95336174966014586,
+    tolerance = 1e-8
+  )
+  expect_equal(
+    result$diagnostics_coeff_boot["sd_boot", "1", "lambda_1"],
+    1.7098195521520079,
+    tolerance = 1e-8
   )
 })
