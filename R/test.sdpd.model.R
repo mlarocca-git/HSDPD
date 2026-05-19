@@ -186,6 +186,8 @@ test_sdpd_model <- function(res_fit,
     dim = c(n_boot, 2, data$pp)
   )
 
+  design <- .test_sdpd_design_from_checked_data(data, model_obj)
+
   # Bootstrap iterations.
   for (bb in seq_len(n_boot)) {
     residual_boot <- residuals[, boot_index[bb, ], drop = FALSE]
@@ -204,14 +206,9 @@ test_sdpd_model <- function(res_fit,
       )$series
     }
 
-    covs <- fit_sdpd_covs(
-      series = yy_star_1,
-      x = res_fit$data$xx,
-      px_neighbors = res_fit$data$px_neighbors,
-      kk = data$kk,
-      nn = data$nn,
-      pp = data$pp
-    )
+    boot_design <- design
+    boot_design$series <- yy_star_1
+    covs <- .fit_sdpd_covs_from_design(boot_design)
 
     boot_rep[bb, , ] <- fit_sdpd_coefficients(
       ww = res_fit$data$ww,
@@ -417,5 +414,3 @@ test_sdpd_model <- function(res_fit,
     warnings = diagnostics_model$warnings
   )
 }
-
-
