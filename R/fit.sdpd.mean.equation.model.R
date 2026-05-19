@@ -1,3 +1,12 @@
+.fit_sdpd_mean_equation_from_design <- function(design, fitted_result) {
+  fit_sdpd_mean_equation_model(
+    result = fitted_result,
+    ww = design$ww,
+    time_weights = design$time_weights,
+    index_weights = design$index_weights
+  )
+}
+
 #' Compute the SDP-D Mean-Equation Model
 #'
 #' Computes mean-equation summaries from fitted SDP-D values.
@@ -156,6 +165,5 @@ fit_sdpd_mean_equation_model <- function(result,
     mus_t_weighted = mus_t_weighted
   )
 }
-
 
 
