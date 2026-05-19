@@ -1,3 +1,19 @@
+.test_sdpd_design_from_checked_data <- function(data, model_obj) {
+  .new_sdpd_design(
+    series = data$series,
+    x = data$xx,
+    unit_index = rownames(data$series),
+    time_index = colnames(data$series),
+    pp = data$pp,
+    nn = data$nn,
+    kk = data$kk,
+    ww = data$ww,
+    px_neighbors = data$px_neighbors,
+    mu = data$mu,
+    model = model_obj
+  )
+}
+
 #' Test an SDP-D Model by Residual Bootstrap
 #'
 #' Performs bootstrap-based hypothesis tests on fitted SDP-D model coefficients.
@@ -401,6 +417,5 @@ test_sdpd_model <- function(res_fit,
     warnings = diagnostics_model$warnings
   )
 }
-
 
 
