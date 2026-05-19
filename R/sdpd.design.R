@@ -156,9 +156,77 @@
   if (!is.null(design$ww)) {
     if (!is.matrix(design$ww) || !is.numeric(design$ww)) {
       errors <- c(errors, "The design spatial weights object must be a numeric matrix.")
-    } else if (!identical(rownames(design$ww), design$unit_index) ||
-               !identical(colnames(design$ww), design$unit_index)) {
-      errors <- c(errors, "The design spatial weights names must match unit_index.")
+    } else {
+      if (!all(dim(design$ww) == c(design$pp, design$pp))) {
+        errors <- c(errors, "The design spatial weights object must have dimensions pp by pp.")
+      }
+
+      if (!identical(rownames(design$ww), design$unit_index) ||
+          !identical(colnames(design$ww), design$unit_index)) {
+        errors <- c(errors, "The design spatial weights names must match unit_index.")
+      }
+    }
+  }
+
+  if (!is.null(design$ww_index) || !is.null(design$ww_values)) {
+    if (is.null(design$ww_index) || is.null(design$ww_values)) {
+      errors <- c(errors, "The design ww_index and ww_values objects must both be present.")
+    } else if (!is.matrix(design$ww_index) || !is.matrix(design$ww_values)) {
+      errors <- c(errors, "The design ww_index and ww_values objects must be matrices.")
+    } else {
+      if (!identical(dim(design$ww_index), dim(design$ww_values))) {
+        errors <- c(errors, "The design ww_index and ww_values objects must have matching dimensions.")
+      }
+
+      if (!is.null(rownames(design$ww_index)) &&
+          !identical(rownames(design$ww_index), design$unit_index)) {
+        errors <- c(errors, "The design ww_index row names must match unit_index.")
+      }
+
+      if (!is.null(rownames(design$ww_values)) &&
+          !identical(rownames(design$ww_values), design$unit_index)) {
+        errors <- c(errors, "The design ww_values row names must match unit_index.")
+      }
+
+      if (!is.null(colnames(design$ww_index)) &&
+          !is.null(colnames(design$ww_values)) &&
+          !identical(colnames(design$ww_index), colnames(design$ww_values))) {
+        errors <- c(errors, "The design ww_index and ww_values column names must match.")
+      }
+    }
+  }
+
+  if (!is.null(design$px_neighbors)) {
+    if (!is.list(design$px_neighbors)) {
+      errors <- c(errors, "The design px_neighbors object must be a list.")
+    } else if (is.null(design$px_neighbors$index)) {
+      errors <- c(errors, "The design px_neighbors object must contain an index matrix.")
+    } else if (!is.matrix(design$px_neighbors$index)) {
+      errors <- c(errors, "The design px_neighbors index must be a matrix.")
+    } else {
+      if (!is.null(rownames(design$px_neighbors$index)) &&
+          !identical(rownames(design$px_neighbors$index), design$unit_index)) {
+        errors <- c(errors, "The design px_neighbors index row names must match unit_index.")
+      }
+    }
+
+    if (is.list(design$px_neighbors) &&
+        !is.null(design$px_neighbors$series_boundary)) {
+      if (!is.matrix(design$px_neighbors$series_boundary) ||
+          !is.numeric(design$px_neighbors$series_boundary)) {
+        errors <- c(errors, "The design px_neighbors series_boundary must be a numeric matrix.")
+      } else {
+        boundary_rownames <- rownames(design$px_neighbors$series_boundary)
+
+        if (!is.null(boundary_rownames) && any(!nzchar(boundary_rownames))) {
+          errors <- c(errors, "The design px_neighbors series_boundary row names must be non-empty.")
+        }
+
+        if (!is.null(colnames(design$px_neighbors$series_boundary)) &&
+            !identical(colnames(design$px_neighbors$series_boundary), design$time_index)) {
+          errors <- c(errors, "The design px_neighbors series_boundary column names must match time_index.")
+        }
+      }
     }
   }
 

@@ -346,3 +346,205 @@ test_that("sdpd_design validates mu and time_effects metadata", {
   expect_match(errors, "mu names must match unit_index")
   expect_match(errors, "time_effects vector must be numeric")
 })
+
+test_that("sdpd_design validates ww dimensions and names", {
+  design <- make_manual_design()
+  design$ww <- matrix(
+    0,
+    nrow = 2,
+    ncol = 2,
+    dimnames = list(c("1", "2"), c("1", "2"))
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "spatial weights object must have dimensions pp by pp"
+  )
+
+  design <- make_manual_design()
+  design$ww <- matrix(
+    0,
+    nrow = 3,
+    ncol = 3,
+    dimnames = list(c("1", "2", "bad"), c("1", "2", "3"))
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "spatial weights names must match unit_index"
+  )
+})
+
+test_that("sdpd_design validates ww_index and ww_values pairing", {
+  design <- make_manual_design()
+  design$ww_index <- matrix(
+    c(2, 3,
+      1, 3,
+      1, 2),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "ww_index and ww_values objects must both be present"
+  )
+})
+
+test_that("sdpd_design validates ww_index and ww_values dimensions", {
+  design <- make_manual_design()
+  design$ww_index <- matrix(
+    c(2, 3,
+      1, 3,
+      1, 2),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  design$ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 1,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "ww_index and ww_values objects must have matching dimensions"
+  )
+})
+
+test_that("sdpd_design validates ww_index and ww_values row names", {
+  design <- make_manual_design()
+  design$ww_index <- matrix(
+    c(2, 3,
+      1, 3,
+      1, 2),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "bad"), NULL)
+  )
+  design$ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 2,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "ww_index row names must match unit_index"
+  )
+})
+
+test_that("sdpd_design validates px_neighbors object type and index", {
+  design <- make_manual_design()
+  design$px_neighbors <- matrix(1, nrow = 3, ncol = 1)
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "px_neighbors object must be a list"
+  )
+
+  design <- make_manual_design()
+  design$px_neighbors <- list(series_boundary = NULL)
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "px_neighbors object must contain an index matrix"
+  )
+
+  design <- make_manual_design()
+  design$px_neighbors <- list(index = c(1, 2, 3))
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "px_neighbors index must be a matrix"
+  )
+})
+
+test_that("sdpd_design validates px_neighbors index row names", {
+  design <- make_manual_design()
+  design$px_neighbors <- list(
+    index = matrix(
+      c(2, 3,
+        1, 3,
+        1, 2),
+      nrow = 3,
+      byrow = TRUE,
+      dimnames = list(c("1", "2", "bad"), NULL)
+    ),
+    series_boundary = NULL
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "px_neighbors index row names must match unit_index"
+  )
+})
+
+test_that("sdpd_design validates px_neighbors series_boundary metadata", {
+  design <- make_manual_design()
+  design$px_neighbors <- list(
+    index = matrix(
+      c(2, 3,
+        1, 3,
+        1, 2),
+      nrow = 3,
+      byrow = TRUE,
+      dimnames = list(c("1", "2", "3"), NULL)
+    ),
+    series_boundary = data.frame(t1 = 1, t2 = 2, t3 = 3)
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "series_boundary must be a numeric matrix"
+  )
+
+  design <- make_manual_design()
+  design$px_neighbors <- list(
+    index = matrix(
+      c(2, 3,
+        1, 3,
+        1, 2),
+      nrow = 3,
+      byrow = TRUE,
+      dimnames = list(c("1", "2", "3"), NULL)
+    ),
+    series_boundary = matrix(
+      1,
+      nrow = 1,
+      ncol = 3,
+      dimnames = list("4", c("bad1", "bad2", "bad3"))
+    )
+  )
+
+  design <- validate_manual_design(design)
+
+  expect_match(
+    paste(design$errors, collapse = " "),
+    "series_boundary column names must match time_index"
+  )
+})
