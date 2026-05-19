@@ -1,3 +1,13 @@
+.fit_second_stage_from_design <- function(design, coeff_hat) {
+  fit_second_stage(
+    data_series = design$series,
+    x_centered = design$x,
+    ww = design$ww,
+    model = design$model,
+    coeff_hat = coeff_hat
+  )
+}
+
 #' Fit the Second-Stage SDP-D Estimator
 #'
 #' Fits the second-stage estimator for the beta coefficients and, when included
@@ -122,4 +132,3 @@ fit_second_stage <- function(data_series,
 
   coeff_hat
 }
-
