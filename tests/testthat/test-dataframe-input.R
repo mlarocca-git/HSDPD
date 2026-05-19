@@ -1,3 +1,26 @@
+test_that("sdpd_data constructor creates the internal data object", {
+  new_sdpd_data <- getFromNamespace(".new_sdpd_data", "HSDPD")
+  series <- matrix(
+    1:4,
+    nrow = 2,
+    dimnames = list(c("1", "2"), c("t1", "t2"))
+  )
+
+  result <- new_sdpd_data(
+    series = series,
+    px = c("1", "2")
+  )
+
+  expect_s3_class(result, "sdpd_data")
+  expect_named(result, c("series", "px", "lat", "lon", "rr_xx", "rr_groups"))
+  expect_equal(result$series, series)
+  expect_equal(result$px, c("1", "2"))
+  expect_null(result$lat)
+  expect_null(result$lon)
+  expect_null(result$rr_xx)
+  expect_null(result$rr_groups)
+})
+
 test_that("read_data_from_dataframe accepts valid data-frame inputs", {
   rr_y <- data.frame(
     latitude = c(40.1, 40.2, 40.3),
