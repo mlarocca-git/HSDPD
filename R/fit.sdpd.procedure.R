@@ -163,5 +163,6 @@ fit_sdpd_procedure <- function(series,
 
   # Output.
   result$diagnostics <- diagnostics
+  attr(result, "sdpd_design") <- design
   result
 }

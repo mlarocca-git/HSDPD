@@ -132,6 +132,34 @@ make_test_sdpd_model_covariate_result <- function() {
   )
 }
 
+make_test_sdpd_model_public_fit_fixture <- function() {
+  data <- make_test_sdpd_model_checked_data()
+  ww_index <- data$px_neighbors$index
+  ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 2,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  model <- build_sdpd_model(
+    lambda_0 = FALSE,
+    lambda_1 = TRUE,
+    lambda_2 = FALSE,
+    covariates = 0,
+    fixed_effects = FALSE
+  )
+  series <- read_data_from_dataframe(
+    px = c("1", "2", "3"),
+    rr_y = data$series,
+    model = model,
+    ww_index = ww_index,
+    ww_values = ww_values,
+    px_neighbors = list(index = ww_index)
+  )
+
+  list(series = series, model = model)
+}
+
 test_that("test_sdpd_model design bridge builds a valid design object", {
   test_sdpd_design_from_checked_data <- getFromNamespace(
     ".test_sdpd_design_from_checked_data",
@@ -349,4 +377,102 @@ test_that("test_sdpd_model bootstrap numeric regression remains stable", {
     1.7098195521520079,
     tolerance = 1e-8
   )
+})
+
+test_that("fit_sdpd_model stores procedure results without changing visible columns", {
+  fixture <- make_test_sdpd_model_public_fit_fixture()
+
+  fit <- fit_sdpd_model(
+    series = fixture$series,
+    model = fixture$model
+  )
+
+  expect_named(
+    fit,
+    c(
+      "px",
+      "group",
+      "fitted",
+      "resid",
+      "coeff_hat",
+      "mean_resid",
+      "sd_resid",
+      "pvalue_lb",
+      "pvalue_jb",
+      "max_eigen_a",
+      "mu_means",
+      "mu_tmeans"
+    )
+  )
+  expect_false("sdpd_procedure_results" %in% names(fit))
+  procedure_results <- attr(fit, "sdpd_procedure_results", exact = TRUE)
+  expect_length(procedure_results, 1)
+  expect_s3_class(
+    attr(procedure_results[[1]], "sdpd_design", exact = TRUE),
+    "sdpd_design"
+  )
+})
+
+test_that("test_sdpd_model accepts public fit_sdpd_model output", {
+  set.seed(20240522)
+  fixture <- make_test_sdpd_model_public_fit_fixture()
+  fit <- fit_sdpd_model(
+    series = fixture$series,
+    model = fixture$model
+  )
+
+  result <- test_sdpd_model(
+    res_fit = fit,
+    px = fit$px,
+    n_boot = 21,
+    h0 = "zero",
+    boot_options = list(
+      markovian = FALSE,
+      resid = "normal",
+      sigma_resid = 0.01,
+      boot_plot = FALSE,
+      folder = "",
+      y_limits = NULL,
+      label_index = NULL
+    )
+  )
+
+  expect_named(
+    result,
+    c(
+      "pvalue",
+      "n_boot",
+      "h0",
+      "diagnostics_model",
+      "coeff_hat",
+      "diagnostics_coeff_boot",
+      "diagnostics_sdevs_tsboot",
+      "warnings"
+    )
+  )
+  expect_equal(result$n_boot, 21)
+  expect_equal(result$h0, "zero")
+  expect_equal(dim(result$pvalue), dim(result$coeff_hat))
+})
+
+test_that("test_sdpd_model reports ambiguous public fit internals clearly", {
+  fixture <- make_test_sdpd_model_public_fit_fixture()
+  fit <- fit_sdpd_model(
+    series = fixture$series,
+    model = fixture$model
+  )
+  procedure_results <- attr(fit, "sdpd_procedure_results", exact = TRUE)
+  attr(fit, "sdpd_procedure_results") <- c(
+    procedure_results,
+    procedure_results
+  )
+
+  result <- test_sdpd_model(
+    res_fit = fit,
+    px = fit$px,
+    n_boot = 21
+  )
+
+  expect_named(result, "error")
+  expect_match(result$error, "unambiguous.*multiple procedure results")
 })

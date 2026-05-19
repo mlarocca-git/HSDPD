@@ -70,19 +70,21 @@ fit_sdpd_model <- function(series,
   }
 
   # Estimate the H-SDPD model parameters on each group of pixels.
-  result <- data_frame_data |>
+  procedure_results <- data_frame_data |>
     purrr::map(
       fit_sdpd_procedure,
       model = model,
       check = check,
       two_stage = two_stage,
       na_covs = na_covs
-    ) |>
+    )
+
+  result <- procedure_results |>
     purrr::map(fit_sdpd_assemble) |>
     dplyr::bind_rows()
 
   # Output.
+  attr(result, "sdpd_procedure_results") <- procedure_results
   result
 }
-
 

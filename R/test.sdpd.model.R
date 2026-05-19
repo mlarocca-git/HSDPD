@@ -14,6 +14,90 @@
   )
 }
 
+.test_sdpd_data_from_design <- function(design) {
+  list(
+    series = design$series,
+    xx = design$x,
+    ww = design$ww,
+    px_neighbors = design$px_neighbors,
+    pp = design$pp,
+    nn = design$nn,
+    kk = design$kk,
+    mu = design$mu
+  )
+}
+
+.test_sdpd_res_fit_from_design <- function(res_fit, design) {
+  if (is.null(res_fit[["data"]])) {
+    res_fit$data <- .test_sdpd_data_from_design(design)
+  }
+
+  if (is.null(res_fit[["model"]])) {
+    res_fit$model <- design$model
+  }
+
+  attr(res_fit, "sdpd_design") <- design
+  res_fit
+}
+
+.test_sdpd_normalize_res_fit <- function(res_fit, px = NULL) {
+  if (!is.null(res_fit[["data"]])) {
+    return(list(
+      res_fit = res_fit,
+      design = attr(res_fit, "sdpd_design", exact = TRUE)
+    ))
+  }
+
+  design <- attr(res_fit, "sdpd_design", exact = TRUE)
+
+  if (!is.null(design)) {
+    return(list(
+      res_fit = .test_sdpd_res_fit_from_design(res_fit, design),
+      design = design
+    ))
+  }
+
+  procedure_results <- attr(
+    res_fit,
+    "sdpd_procedure_results",
+    exact = TRUE
+  )
+
+  if (!is.null(procedure_results)) {
+    procedure_results <- Filter(Negate(is.null), procedure_results)
+
+    if (length(procedure_results) != 1) {
+      return(list(
+        error = paste(
+          "test_sdpd_model() requires an unambiguous fitted procedure result;",
+          "the supplied fit_sdpd_model() result contains multiple procedure results."
+        )
+      ))
+    }
+
+    procedure_result <- procedure_results[[1]]
+    design <- attr(procedure_result, "sdpd_design", exact = TRUE)
+
+    if (is.null(design)) {
+      return(list(
+        error = "The fitted procedure result does not contain an sdpd_design attribute."
+      ))
+    }
+
+    return(list(
+      res_fit = .test_sdpd_res_fit_from_design(procedure_result, design),
+      design = design
+    ))
+  }
+
+  list(
+    error = paste(
+      "test_sdpd_model() requires res_fit$data or fitted-result",
+      "attributes created by fit_sdpd_procedure() or fit_sdpd_model()."
+    )
+  )
+}
+
 #' Test an SDP-D Model by Residual Bootstrap
 #'
 #' Performs bootstrap-based hypothesis tests on fitted SDP-D model coefficients.
@@ -107,6 +191,15 @@ test_sdpd_model <- function(res_fit,
                             )) {
   # h0 defines the null hypothesis.
 
+  normalized <- .test_sdpd_normalize_res_fit(res_fit = res_fit, px = px)
+
+  if (!is.null(normalized$error)) {
+    return(list(error = normalized$error))
+  }
+
+  res_fit <- normalized$res_fit
+  design <- normalized$design
+
   if (is.null(model)) {
     model_obj <- res_fit$model
   } else {
@@ -114,7 +207,15 @@ test_sdpd_model <- function(res_fit,
   }
 
   # Check stationarity conditions.
-  diagnostics_model <- check_sdpd_model(res_fit = res_fit)
+  if (!is.null(design)) {
+    diagnostics_model <- check_sdpd_model(
+      res_fit = res_fit,
+      ww_index = design$ww_index,
+      ww_values = design$ww_values
+    )
+  } else {
+    diagnostics_model <- check_sdpd_model(res_fit = res_fit)
+  }
 
   if (!is.null(diagnostics_model$errors) &&
       length(diagnostics_model$errors) > 0) {

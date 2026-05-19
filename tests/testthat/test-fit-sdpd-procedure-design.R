@@ -75,6 +75,8 @@ test_that("fit_sdpd_procedure keeps the public result structure", {
   expect_equal(rownames(result$fitted), c("1", "2", "3"))
   expect_equal(colnames(result$fitted), paste0("t", 1:6))
   expect_equal(result$diagnostics, FALSE)
+  expect_false("sdpd_design" %in% names(result))
+  expect_s3_class(attr(result, "sdpd_design", exact = TRUE), "sdpd_design")
 })
 
 test_that("fit_sdpd_procedure returns errors and warnings for invalid input", {
