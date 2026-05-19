@@ -1,3 +1,23 @@
+.fit_sdpd_series_from_design <- function(design,
+                                         coeff_hat,
+                                         px_sim = NULL,
+                                         resids = NULL,
+                                         markovian = TRUE,
+                                         num_steps = 10) {
+  fit_sdpd_series(
+    data_series = design$series,
+    ww = design$ww,
+    x_centered = design$x,
+    model = design$model,
+    coeff_hat = coeff_hat,
+    time_effects = design$time_effects,
+    px_sim = px_sim,
+    resids = resids,
+    markovian = markovian,
+    num_steps = num_steps
+  )
+}
+
 #' Compute Fitted Values and Residuals for an SDP-D Series
 #'
 #' Computes fitted values and residuals for an SDP-D model, or simulates/update
@@ -225,4 +245,3 @@ fit_sdpd_series <- function(data_series,
     resid = new_resid
   )
 }
-
