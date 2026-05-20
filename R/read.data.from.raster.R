@@ -575,14 +575,86 @@ read_data_from_raster <- function(px = NULL,
   )
 }
 
+.raster_components_dataframe_groups <- function(components) {
+  if (is.null(components$group) ||
+      is.null(rownames(components$series))) {
+    return(NULL)
+  }
+
+  groups <- as.matrix(components$group)
+
+  if (is.null(rownames(groups)) ||
+      sum(c("COD", "LABEL") %in% colnames(groups)) < 2) {
+    return(NULL)
+  }
+
+  groups <- groups[, c("COD", "LABEL"), drop = FALSE]
+  series_rows <- rownames(components$series)
+
+  if (identical(rownames(groups), series_rows)) {
+    return(groups)
+  }
+
+  if (!identical(rownames(groups), as.character(components$px))) {
+    return(NULL)
+  }
+
+  unique_groups <- unique(groups)
+
+  if (nrow(unique_groups) != 1 ||
+      !identical(as.character(unique_groups[1, "COD"]), "1") ||
+      !identical(as.character(unique_groups[1, "LABEL"]), "Common group")) {
+    return(NULL)
+  }
+
+  result <- matrix(
+    rep(unique_groups[1, ], length(series_rows)),
+    nrow = length(series_rows),
+    byrow = TRUE,
+    dimnames = list(series_rows, colnames(groups))
+  )
+  result
+}
+
+.raster_components_dataframe_coordinates <- function(components) {
+  series_rows <- rownames(components$series)
+
+  if (is.null(series_rows)) {
+    return(NULL)
+  }
+
+  if (length(components$lat) == length(series_rows) &&
+      length(components$lon) == length(series_rows) &&
+      identical(names(components$lat), series_rows) &&
+      identical(names(components$lon), series_rows)) {
+    return(list(lat = components$lat, lon = components$lon))
+  }
+
+  if (is.null(components$na_summary) ||
+      sum(c("lat", "lon") %in% colnames(components$na_summary)) < 2 ||
+      sum(series_rows %in% rownames(components$na_summary)) < length(series_rows)) {
+    return(NULL)
+  }
+
+  lat <- as.numeric(components$na_summary[series_rows, "lat"])
+  lon <- as.numeric(components$na_summary[series_rows, "lon"])
+  names(lat) <- series_rows
+  names(lon) <- series_rows
+
+  list(lat = lat, lon = lon)
+}
+
 .raster_components_are_dataframe_compatible <- function(components) {
+  dataframe_groups <- .raster_components_dataframe_groups(components)
+  dataframe_coordinates <- .raster_components_dataframe_coordinates(components)
+
   if (!is.null(components$error) ||
       !is.matrix(components$series) ||
       !is.matrix(components$ww_index) ||
       !is.matrix(components$ww_values) ||
-      !identical(as.character(components$px), rownames(components$series)) ||
-      is.null(components$group) ||
-      !identical(rownames(components$group), rownames(components$series))) {
+      sum(as.character(components$px) %in% rownames(components$series)) < length(components$px) ||
+      is.null(dataframe_groups) ||
+      is.null(dataframe_coordinates)) {
     return(FALSE)
   }
 
@@ -600,6 +672,11 @@ read_data_from_raster <- function(px = NULL,
 
 .raster_components_via_dataframe <- function(components, model) {
   args <- .raster_components_to_dataframe_args(components)
+  dataframe_coordinates <- .raster_components_dataframe_coordinates(components)
+
+  args$lat <- dataframe_coordinates$lat
+  args$lon <- dataframe_coordinates$lon
+  args$rr_groups <- .raster_components_dataframe_groups(components)
   result <- do.call(read_data_from_dataframe, c(args, list(model = model)))
 
   if (!is.null(result$error)) {
@@ -611,11 +688,11 @@ read_data_from_raster <- function(px = NULL,
     xx = result$xx,
     ww_index = result$ww_index,
     ww_values = result$ww_values,
-    px_neighbors = result$px_neighbors,
+    px_neighbors = components$px_neighbors,
     na_summary = components$na_summary,
     px = components$px,
     lon = components$lon,
     lat = components$lat,
-    group = result$group
+    group = components$group
   )
 }

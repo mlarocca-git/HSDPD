@@ -157,8 +157,23 @@ test_that("read_data_from_raster returns current error list for invalid type_w",
 })
 
 test_that("read_data_from_raster handles subset px with far neighbors", {
+  raster_input_to_dataframe_components <- getFromNamespace(
+    ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
+    "HSDPD"
+  )
   rr_y <- make_test_spatraster()
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- raster_input_to_dataframe_components(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options_with_neighbors()
+  )
+  expected <- raster_components_via_dataframe(components, model)
 
   expect_no_error(
     result <- read_data_from_raster(
@@ -190,6 +205,14 @@ test_that("read_data_from_raster handles subset px with far neighbors", {
   expect_true(is.matrix(result$px_neighbors$series_boundary))
   expect_equal(rownames(result$px_neighbors$index), rownames(result$series))
   expect_equal(colnames(result$px_neighbors$series_boundary), colnames(result$series))
+  expect_equal(result$series, expected$series)
+  expect_equal(result$ww_index, expected$ww_index)
+  expect_equal(result$ww_values, expected$ww_values)
+  expect_equal(result$px_neighbors, expected$px_neighbors)
+  expect_equal(result$px, 5)
+  expect_equal(names(result$lat), "5")
+  expect_equal(names(result$lon), "5")
+  expect_equal(rownames(result$group), "5")
 })
 
 test_that("raster components bridge prepares no-covariate dataframe args", {
@@ -328,7 +351,7 @@ test_that("raster dataframe compatibility is TRUE for safe all-selected componen
   expect_true(raster_components_are_dataframe_compatible(components))
 })
 
-test_that("raster dataframe compatibility is FALSE for subset px with NULL px_neighbors", {
+test_that("raster dataframe compatibility is TRUE for safe subset px with NULL px_neighbors", {
   raster_components_are_dataframe_compatible <- getFromNamespace(
     ".raster_components_are_dataframe_compatible",
     "HSDPD"
@@ -344,7 +367,7 @@ test_that("raster dataframe compatibility is FALSE for subset px with NULL px_ne
 
   expect_null(components$error)
   expect_null(components$px_neighbors)
-  expect_false(raster_components_are_dataframe_compatible(components))
+  expect_true(raster_components_are_dataframe_compatible(components))
 })
 
 test_that("raster dataframe compatibility is TRUE for safe all-selected NULL px_neighbors", {
@@ -366,7 +389,7 @@ test_that("raster dataframe compatibility is TRUE for safe all-selected NULL px_
   expect_true(raster_components_are_dataframe_compatible(components))
 })
 
-test_that("raster dataframe compatibility is FALSE for subset px group mismatch", {
+test_that("raster dataframe compatibility is FALSE for ambiguous subset groups", {
   raster_components_are_dataframe_compatible <- getFromNamespace(
     ".raster_components_are_dataframe_compatible",
     "HSDPD"
@@ -379,12 +402,9 @@ test_that("raster dataframe compatibility is FALSE for subset px group mismatch"
     model = model,
     vec_options = make_raster_vec_options()
   )
-  components$px_neighbors <- list(index = components$ww_index)
+  components$group[, "LABEL"] <- "custom"
 
   expect_null(components$error)
-  expect_false(
-    identical(rownames(components$group), rownames(components$series))
-  )
   expect_false(raster_components_are_dataframe_compatible(components))
 })
 
@@ -522,19 +542,24 @@ test_that("read_data_from_raster routes safe all-selected components through dat
   expect_equal(result$px, components$px)
 })
 
-test_that("read_data_from_raster keeps NULL px_neighbors case on legacy path", {
+test_that("read_data_from_raster routes subset NULL px_neighbors through dataframe path", {
   raster_input_to_dataframe_components <- getFromNamespace(
     ".raster_input_to_dataframe_components",
     "HSDPD"
   )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
+    "HSDPD"
+  )
   rr_y <- make_test_spatraster()
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
-  expected <- raster_input_to_dataframe_components(
+  components <- raster_input_to_dataframe_components(
     px = 5,
     rr_y = rr_y,
     model = model,
     vec_options = make_raster_vec_options()
   )
+  expected <- raster_components_via_dataframe(components, model)
 
   result <- read_data_from_raster(
     px = 5,
@@ -545,7 +570,15 @@ test_that("read_data_from_raster keeps NULL px_neighbors case on legacy path", {
 
   expect_null(result$error)
   expect_null(result$px_neighbors)
-  expect_equal(result, expected)
+  expect_named(result, names(expected))
+  expect_equal(result$series, expected$series)
+  expect_equal(result$ww_index, expected$ww_index)
+  expect_equal(result$ww_values, expected$ww_values)
+  expect_equal(result$na_summary, components$na_summary)
+  expect_equal(result$px, 5)
+  expect_equal(names(result$lat), "5")
+  expect_equal(names(result$lon), "5")
+  expect_equal(rownames(result$group), "5")
 })
 
 test_that("read_data_from_raster routes safe all-selected NULL px_neighbors", {
@@ -697,9 +730,13 @@ test_that("raster dataframe compatibility is FALSE for malformed covariate dimna
   expect_false(raster_components_are_dataframe_compatible(components))
 })
 
-test_that("read_data_from_raster keeps subset covariate raster on legacy path", {
+test_that("read_data_from_raster routes subset covariate raster through dataframe path", {
   raster_input_to_dataframe_components <- getFromNamespace(
     ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
     "HSDPD"
   )
   rr_y <- make_test_spatraster()
@@ -716,6 +753,7 @@ test_that("read_data_from_raster keeps subset covariate raster on legacy path", 
     model = model,
     vec_options = make_raster_vec_options()
   )
+  expected <- raster_components_via_dataframe(expected, model)
 
   result <- read_data_from_raster(
     px = 5,
@@ -726,5 +764,14 @@ test_that("read_data_from_raster keeps subset covariate raster on legacy path", 
   )
 
   expect_null(result$error)
-  expect_equal(result, expected)
+  expect_named(result, names(expected))
+  expect_true(is.array(result$xx))
+  expect_equal(dim(result$xx), dim(expected$xx))
+  expect_equal(dimnames(result$xx), dimnames(expected$xx))
+  expect_equal(result$xx, expected$xx)
+  expect_equal(result$na_summary, expected$na_summary)
+  expect_equal(result$px, 5)
+  expect_equal(names(result$lat), "5")
+  expect_equal(names(result$lon), "5")
+  expect_equal(rownames(result$group), "5")
 })
