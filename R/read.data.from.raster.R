@@ -492,6 +492,7 @@ read_data_from_raster <- function(px = NULL,
       ] <- temp_neighbors
     }
 
+    neighbor_indices <- stats::na.exclude(unique(as.vector(px_neighbors_index)))
     remaining_indices <- indices[!(as.numeric(indices) %in% px)]
 
     for (ii in remaining_indices) {

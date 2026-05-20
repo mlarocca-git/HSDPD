@@ -156,6 +156,42 @@ test_that("read_data_from_raster returns current error list for invalid type_w",
   expect_match(result$error, "type_w")
 })
 
+test_that("read_data_from_raster handles subset px with far neighbors", {
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  expect_no_error(
+    result <- read_data_from_raster(
+      px = 5,
+      rr_y = rr_y,
+      model = model,
+      vec_options = make_raster_vec_options_with_neighbors()
+    )
+  )
+
+  expect_null(result$error)
+  expect_named(
+    result,
+    c(
+      "series",
+      "xx",
+      "ww_index",
+      "ww_values",
+      "px_neighbors",
+      "na_summary",
+      "px",
+      "lon",
+      "lat",
+      "group"
+    )
+  )
+  expect_type(result$px_neighbors, "list")
+  expect_true(is.matrix(result$px_neighbors$index))
+  expect_true(is.matrix(result$px_neighbors$series_boundary))
+  expect_equal(rownames(result$px_neighbors$index), rownames(result$series))
+  expect_equal(colnames(result$px_neighbors$series_boundary), colnames(result$series))
+})
+
 test_that("raster components bridge prepares no-covariate dataframe args", {
   raster_components_to_dataframe_args <- getFromNamespace(
     ".raster_components_to_dataframe_args",
