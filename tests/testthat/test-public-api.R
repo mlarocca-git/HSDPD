@@ -9,7 +9,8 @@ test_that("primary workflow functions remain exported", {
         "read_data_from_dataframe",
         "read_data_from_raster",
         "fit_sdpd_model",
-        "test_sdpd_model"
+        "test_sdpd_model",
+        "plot_sdpd_residuals_stat"
       ),
       exports
     ),
@@ -19,7 +20,8 @@ test_that("primary workflow functions remain exported", {
       "read_data_from_dataframe",
       "read_data_from_raster",
       "fit_sdpd_model",
-      "test_sdpd_model"
+      "test_sdpd_model",
+      "plot_sdpd_residuals_stat"
     )
   )
 })

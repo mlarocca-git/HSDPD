@@ -133,7 +133,60 @@ plot_stat_discrete_resids <- function(results,
   result
 }
 
-
-
-
-
+#' Plot SDP-D Residual Statistics
+#'
+#' User-facing wrapper for [plot_stat_discrete_resids()] using the current
+#' package naming style.
+#'
+#' @param results List or data frame. SDP-D estimation results containing
+#'   residuals, longitude coordinates, and latitude coordinates.
+#' @param statistic Function. Summary function applied to residuals. Defaults to
+#'   [mean()].
+#' @param main Optional character scalar. Plot title.
+#' @param significant_test Logical scalar. Whether values should be converted
+#'   into significance classes using `alpha`. Defaults to `FALSE`.
+#' @param by_adjusted Logical scalar. Whether p-values should be adjusted using
+#'   the Benjamini-Yekutieli method. Defaults to `FALSE`.
+#' @param alpha Optional numeric scalar. Significance level used when
+#'   `significant_test = TRUE`.
+#' @param mid_value Numeric scalar. Midpoint used for the diverging color scale.
+#'   Defaults to `0`.
+#' @param size_point Numeric scalar. Point size used in the plot. Defaults to
+#'   `1`.
+#' @param ... Additional arguments passed to `statistic`.
+#'
+#' @return A `ggplot` object.
+#'
+#' @examples
+#' \dontrun{
+#' plot_sdpd_residuals_stat(
+#'   results = fit,
+#'   statistic = mean,
+#'   main = "Mean residuals",
+#'   mid_value = 0
+#' )
+#' }
+#' @seealso [plot_stat_discrete_resids()]
+#'
+#' @export
+plot_sdpd_residuals_stat <- function(results,
+                                     statistic = mean,
+                                     main = NULL,
+                                     significant_test = FALSE,
+                                     by_adjusted = FALSE,
+                                     alpha = NULL,
+                                     mid_value = 0,
+                                     size_point = 1,
+                                     ...) {
+  plot_stat_discrete_resids(
+    results = results,
+    statistic = statistic,
+    main = main,
+    significant_test = significant_test,
+    by_adjusted = by_adjusted,
+    alpha = alpha,
+    mid_value = mid_value,
+    size_point = size_point,
+    ...
+  )
+}
