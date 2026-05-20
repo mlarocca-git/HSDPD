@@ -1,0 +1,153 @@
+make_test_spatraster <- function(values_start = 1, varname = "y") {
+  rr <- terra::rast(
+    nrows = 3,
+    ncols = 3,
+    nlyrs = 3,
+    xmin = 0,
+    xmax = 3,
+    ymin = 0,
+    ymax = 3
+  )
+  terra::values(rr) <- matrix(values_start:(values_start + 26), nrow = 9, ncol = 3)
+  terra::time(rr) <- as.Date("2020-01-01") + 0:2
+  terra::varnames(rr) <- varname
+  rr
+}
+
+make_raster_vec_options <- function() {
+  list(px_core = 1, px_neighbors = 0, na_rm = TRUE)
+}
+
+test_that("read_data_from_raster returns expected top-level fields", {
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_named(
+    result,
+    c(
+      "series",
+      "xx",
+      "ww_index",
+      "ww_values",
+      "px_neighbors",
+      "na_summary",
+      "px",
+      "lon",
+      "lat",
+      "group"
+    )
+  )
+})
+
+test_that("read_data_from_raster returns stable no-covariate dimensions and names", {
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_null(result$xx)
+  expect_equal(dim(result$series), c(9L, 3L))
+  expect_equal(
+    rownames(result$series),
+    c("5", "1", "2", "3", "4", "6", "7", "8", "9")
+  )
+  expect_equal(
+    colnames(result$series),
+    as.character(as.Date("2020-01-01") + 0:2)
+  )
+  expect_equal(dim(result$ww_index), c(9L, 9L))
+  expect_equal(rownames(result$ww_index), rownames(result$series))
+  expect_equal(rownames(result$ww_values), rownames(result$series))
+})
+
+test_that("read_data_from_raster preserves selected px after current filtering", {
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_equal(result$px, 5)
+  expect_equal(names(result$lat), "5")
+  expect_equal(names(result$lon), "5")
+  expect_true(as.character(result$px) %in% rownames(result$series))
+})
+
+test_that("read_data_from_raster returns na_summary", {
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_s3_class(result$na_summary, "data.frame")
+  expect_equal(rownames(result$na_summary), rownames(result$series))
+  expect_true(all(c("lat", "lon", "y", "y.XORGroups") %in% names(result$na_summary)))
+  expect_true("isolated_points" %in% names(result$na_summary))
+})
+
+test_that("read_data_from_raster accepts one covariate SpatRaster", {
+  rr_y <- make_test_spatraster()
+  rr_x <- make_test_spatraster(values_start = 101, varname = "x1")
+  model <- build_sdpd_model(
+    covariates = "x1",
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_true(is.array(result$xx))
+  expect_equal(dim(result$xx), c(1L, 9L, 3L))
+  expect_equal(dimnames(result$xx)[[1]], "x1")
+  expect_equal(dimnames(result$xx)[[2]], rownames(result$series))
+  expect_equal(dimnames(result$xx)[[3]], colnames(result$series))
+})
+
+test_that("read_data_from_raster returns current error list for invalid type_w", {
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options(),
+    type_w = "bad"
+  )
+
+  expect_type(result, "list")
+  expect_named(result, "error")
+  expect_match(result$error, "type_w")
+})
