@@ -1,11 +1,11 @@
 #' Read SDP-D Data from Raster Objects
 #'
-#' Extracts and organizes SDP-D input data from raster objects.
+#' Extracts and organizes SDP-D input data from terra raster objects.
 #'
-#' The function builds a spatio-temporal series from raster data, optionally
-#' extracts exogenous raster regressors, builds spatial-weight matrices, removes
-#' missing or isolated pixels, and constructs the neighbor-boundary structure
-#' used by local SDP-D estimation.
+#' The function builds raster-specific input components and, when they are
+#' compatible, routes them through the canonical data-frame input path used by
+#' [read_data_from_dataframe()]. It keeps the raster-facing return structure
+#' stable while using `terra::SpatRaster` as the supported raster backend.
 #'
 #' @param px Optional vector. Raster cell identifiers to include. If `NULL` and
 #'   coordinates are not supplied, all cells are used.
@@ -13,12 +13,14 @@
 #'   when `px` is `NULL`.
 #' @param lon Optional numeric vector. Longitude coordinates used to select cells
 #'   when `px` is `NULL`.
-#' @param rr_y `SpatRaster`. Endogenous raster time series.
-#' @param rr_xx Optional `SpatRaster` or list of `SpatRaster` objects.
+#' @param rr_y `terra::SpatRaster`. Endogenous raster time series.
+#' @param rr_xx Optional `terra::SpatRaster` or list of
+#'   `terra::SpatRaster` objects.
 #'   Exogenous raster regressors.
-#' @param rr_groups Optional `SpatRaster`. Raster object defining group
+#' @param rr_groups Optional `terra::SpatRaster`. Raster object defining group
 #'   membership.
-#' @param label_groups Optional named vector. Group labels indexed by group code.
+#' @param label_groups Optional named vector. Group labels indexed by group
+#'   code. Codes without a supplied label currently produce `NA` labels.
 #' @param model SDP-D model object, typically created with
 #'   [build_sdpd_model()].
 #' @param vec_options List. Vectorization options. Expected elements include
@@ -33,13 +35,14 @@
 #'   \item{ww_index}{Spatial-neighbor index matrix.}
 #'   \item{ww_values}{Spatial-weight value matrix.}
 #'   \item{px_neighbors}{Pixel-neighbor structure with `index` and
-#'   `series_boundary`.}
-#'   \item{na_summary}{Data frame summarizing missing values and isolated
-#'   pixels.}
+#'   `series_boundary`, or `NULL` when no far/boundary neighbors are used.}
+#'   \item{na_summary}{Raster-specific data frame summarizing missing values
+#'   and isolated pixels.}
 #'   \item{px}{Selected pixel identifiers.}
-#'   \item{lon}{Longitude vector.}
-#'   \item{lat}{Latitude vector.}
-#'   \item{group}{Group data frame with columns `COD` and `LABEL`.}
+#'   \item{lon}{Longitude vector for the selected pixels.}
+#'   \item{lat}{Latitude vector for the selected pixels.}
+#'   \item{group}{Group data frame for the selected pixels with columns `COD`
+#'   and `LABEL`.}
 #' }
 #'
 #' If input validation fails, a list with an `error` element is returned.
@@ -49,10 +52,17 @@
 #' are removed according to `vec_options$na_rm`.
 #'
 #' If `px` or coordinates are supplied, the function extracts only the selected
-#' pixels and adds the required core and boundary neighbors.
+#' pixels and adds the required core and boundary neighbors. In this case,
+#' public `px`, `lat`, `lon`, and `group` remain scoped to the selected pixels,
+#' while `series` may include additional close-neighbor rows needed for
+#' estimation.
 #'
-#' The returned object follows the renamed package API: `xx`, `ww_index`,
-#' `ww_values`, `px_neighbors`, and `series_boundary`.
+#' Custom raster groups use `label_groups` to map group codes to labels. Partial
+#' label maps are allowed and currently leave unmatched labels as `NA`.
+#'
+#' The returned object follows the package input structure: `series`, `xx`,
+#' `ww_index`, `ww_values`, `px_neighbors`, `na_summary`, `px`, `lon`, `lat`,
+#' and `group`.
 #'
 #' @seealso [build_sdpd_series()], [read_data_from_dataframe()]
 #'
