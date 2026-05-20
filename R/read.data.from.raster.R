@@ -575,14 +575,26 @@ read_data_from_raster <- function(px = NULL,
 }
 
 .raster_components_are_dataframe_compatible <- function(components) {
-  is.null(components$error) &&
-    is.null(components$xx) &&
-    is.matrix(components$series) &&
-    is.matrix(components$ww_index) &&
-    is.matrix(components$ww_values) &&
-    identical(as.character(components$px), rownames(components$series)) &&
-    !is.null(components$group) &&
-    identical(rownames(components$group), rownames(components$series))
+  if (!is.null(components$error) ||
+      !is.matrix(components$series) ||
+      !is.matrix(components$ww_index) ||
+      !is.matrix(components$ww_values) ||
+      !identical(as.character(components$px), rownames(components$series)) ||
+      is.null(components$group) ||
+      !identical(rownames(components$group), rownames(components$series))) {
+    return(FALSE)
+  }
+
+  if (!is.null(components$xx)) {
+    return(
+      is.array(components$xx) &&
+        length(dim(components$xx)) == 3 &&
+        identical(dimnames(components$xx)[[2]], rownames(components$series)) &&
+        identical(dimnames(components$xx)[[3]], colnames(components$series))
+    )
+  }
+
+  TRUE
 }
 
 .raster_components_via_dataframe <- function(components, model) {

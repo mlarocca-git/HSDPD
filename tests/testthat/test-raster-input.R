@@ -352,7 +352,7 @@ test_that("raster dataframe compatibility is FALSE for subset px group mismatch"
   expect_false(raster_components_are_dataframe_compatible(components))
 })
 
-test_that("raster dataframe compatibility is FALSE for covariate components", {
+test_that("raster dataframe compatibility is TRUE for safe covariate components", {
   raster_components_are_dataframe_compatible <- getFromNamespace(
     ".raster_components_are_dataframe_compatible",
     "HSDPD"
@@ -374,7 +374,7 @@ test_that("raster dataframe compatibility is FALSE for covariate components", {
 
   expect_null(components$error)
   expect_true(is.array(components$xx))
-  expect_false(raster_components_are_dataframe_compatible(components))
+  expect_true(raster_components_are_dataframe_compatible(components))
 })
 
 test_that("raster dataframe helper preserves safe component behavior", {
@@ -548,9 +548,13 @@ test_that("read_data_from_raster routes safe all-selected NULL px_neighbors", {
   expect_equal(result$px, components$px)
 })
 
-test_that("read_data_from_raster keeps covariate raster case on legacy path", {
+test_that("read_data_from_raster routes safe one-covariate raster through dataframe path", {
   raster_input_to_dataframe_components <- getFromNamespace(
     ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
     "HSDPD"
   )
   rr_y <- make_test_spatraster()
@@ -567,6 +571,7 @@ test_that("read_data_from_raster keeps covariate raster case on legacy path", {
     model = model,
     vec_options = make_raster_vec_options_with_neighbors()
   )
+  expected <- raster_components_via_dataframe(expected, model)
 
   result <- read_data_from_raster(
     px = seq_len(9),
@@ -577,6 +582,113 @@ test_that("read_data_from_raster keeps covariate raster case on legacy path", {
   )
 
   expect_null(result$error)
+  expect_named(result, names(expected))
   expect_true(is.array(result$xx))
+  expect_equal(dim(result$xx), dim(expected$xx))
+  expect_equal(dimnames(result$xx), dimnames(expected$xx))
+  expect_equal(result$xx, expected$xx)
+  expect_equal(result$na_summary, expected$na_summary)
+})
+
+test_that("read_data_from_raster routes safe multi-covariate raster through dataframe path", {
+  raster_input_to_dataframe_components <- getFromNamespace(
+    ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  rr_x1 <- make_test_spatraster(values_start = 101, varname = "x1")
+  rr_x2 <- make_test_spatraster(values_start = 201, varname = "x2")
+  model <- build_sdpd_model(
+    covariates = c("x1", "x2"),
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+  components <- raster_input_to_dataframe_components(
+    px = seq_len(9),
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x1, x2 = rr_x2),
+    model = model,
+    vec_options = make_raster_vec_options_with_neighbors()
+  )
+  expected <- raster_components_via_dataframe(components, model)
+
+  result <- read_data_from_raster(
+    px = seq_len(9),
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x1, x2 = rr_x2),
+    model = model,
+    vec_options = make_raster_vec_options_with_neighbors()
+  )
+
+  expect_null(result$error)
+  expect_named(result, names(expected))
+  expect_true(is.array(result$xx))
+  expect_equal(dim(result$xx), dim(components$xx))
+  expect_equal(dimnames(result$xx), dimnames(components$xx))
+  expect_equal(result$xx, components$xx)
+  expect_equal(result$na_summary, components$na_summary)
+})
+
+test_that("raster dataframe compatibility is FALSE for malformed covariate dimnames", {
+  raster_components_are_dataframe_compatible <- getFromNamespace(
+    ".raster_components_are_dataframe_compatible",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  rr_x <- make_test_spatraster(values_start = 101, varname = "x1")
+  model <- build_sdpd_model(
+    covariates = "x1",
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+  components <- getFromNamespace(
+    ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )(
+    px = seq_len(9),
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x),
+    model = model,
+    vec_options = make_raster_vec_options_with_neighbors()
+  )
+  dimnames(components$xx)[[2]] <- rev(dimnames(components$xx)[[2]])
+
+  expect_null(components$error)
+  expect_false(raster_components_are_dataframe_compatible(components))
+})
+
+test_that("read_data_from_raster keeps subset covariate raster on legacy path", {
+  raster_input_to_dataframe_components <- getFromNamespace(
+    ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  rr_x <- make_test_spatraster(values_start = 101, varname = "x1")
+  model <- build_sdpd_model(
+    covariates = "x1",
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+  expected <- raster_input_to_dataframe_components(
+    px = 5,
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
   expect_equal(result, expected)
 })
