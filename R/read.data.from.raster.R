@@ -67,7 +67,7 @@ read_data_from_raster <- function(px = NULL,
                                   model,
                                   vec_options,
                                   type_w = "distance") {
-  .raster_input_to_dataframe_components(
+  components <- .raster_input_to_dataframe_components(
     px = px,
     lat = lat,
     lon = lon,
@@ -79,6 +79,16 @@ read_data_from_raster <- function(px = NULL,
     vec_options = vec_options,
     type_w = type_w
   )
+
+  if (!is.null(components$error)) {
+    return(components)
+  }
+
+  if (.raster_components_are_dataframe_compatible(components)) {
+    return(.raster_components_via_dataframe(components, model))
+  }
+
+  components
 }
 
 .raster_input_to_dataframe_components <- function(px = NULL,
