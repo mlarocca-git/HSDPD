@@ -151,3 +151,101 @@ test_that("read_data_from_raster returns current error list for invalid type_w",
   expect_named(result, "error")
   expect_match(result$error, "type_w")
 })
+
+test_that("raster components bridge prepares no-covariate dataframe args", {
+  raster_components_to_dataframe_args <- getFromNamespace(
+    ".raster_components_to_dataframe_args",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  args <- raster_components_to_dataframe_args(components)
+
+  expect_null(components$error)
+  expect_true(is.matrix(args$rr_y))
+  expect_equal(args$rr_y, components$series)
+  expect_equal(args$px, as.character(components$px))
+  expect_true(is.matrix(args$ww_index))
+  expect_true(is.matrix(args$ww_values))
+  expect_null(args$rr_xx)
+  expect_true(is.matrix(args$rr_groups) || is.data.frame(args$rr_groups))
+  expect_true(all(c("COD", "LABEL") %in% colnames(args$rr_groups)))
+})
+
+test_that("raster components bridge preserves one-covariate array metadata", {
+  raster_components_to_dataframe_args <- getFromNamespace(
+    ".raster_components_to_dataframe_args",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  rr_x <- make_test_spatraster(values_start = 101, varname = "x1")
+  model <- build_sdpd_model(
+    covariates = "x1",
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+  components <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  args <- raster_components_to_dataframe_args(components)
+
+  expect_null(components$error)
+  expect_true(is.array(args$rr_xx))
+  expect_equal(args$rr_xx, components$xx)
+  expect_equal(dimnames(args$rr_xx), dimnames(components$xx))
+  expect_equal(dimnames(args$rr_xx)[[1]], "x1")
+})
+
+test_that("raster components bridge leaves na_summary raster-only", {
+  raster_components_to_dataframe_args <- getFromNamespace(
+    ".raster_components_to_dataframe_args",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  args <- raster_components_to_dataframe_args(components)
+
+  expect_null(components$error)
+  expect_s3_class(components$na_summary, "data.frame")
+  expect_false("na_summary" %in% names(args))
+})
+
+test_that("raster components bridge preserves NULL px_neighbors blocker", {
+  raster_components_to_dataframe_args <- getFromNamespace(
+    ".raster_components_to_dataframe_args",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  args <- raster_components_to_dataframe_args(components)
+
+  expect_null(components$error)
+  expect_null(components$px_neighbors)
+  expect_null(args$px_neighbors)
+})

@@ -550,4 +550,17 @@ read_data_from_raster <- function(px = NULL,
   )
 }
 
+.raster_components_to_dataframe_args <- function(components) {
+  list(
+    px = as.character(components$px),
+    lat = components$lat,
+    lon = components$lon,
+    rr_y = components$series,
+    rr_xx = components$xx,
+    rr_groups = components$group,
+    ww_index = components$ww_index,
+    ww_values = components$ww_values,
+    px_neighbors = components$px_neighbors
+  )
+}
 
