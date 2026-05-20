@@ -16,6 +16,10 @@
 #' Computes covariance components used by the SDP-D coefficient-estimation
 #' routine.
 #'
+#' This is a low-level estimation helper. Most users should call
+#' [fit_sdpd_model()] on a series object instead of calling this function
+#' directly.
+#'
 #' The function builds covariance matrices between the observed series, boundary
 #' or neighbor-augmented series, and optional regressors. These covariance
 #' components are then used by [fit_sdpd_coefficients()].
@@ -143,4 +147,3 @@ fit_sdpd_covs <- function(series,
     cov_x = cov_x
   )
 }
-

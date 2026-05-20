@@ -29,6 +29,10 @@ Estimates the first-stage SDP-D model coefficients using spatial covariance
 components and, when included in the model, computes fixed effects.
 }
 \details{
+This is a low-level estimation helper. Most users should call
+\code{\link[=fit_sdpd_model]{fit_sdpd_model()}} on a series object instead of calling this function
+directly.
+
 The function estimates active lambda coefficients and beta coefficients for
 each spatial unit. If fixed effects are included in the model, they are
 computed from the reduced-form coefficient matrix and the spatial-unit means.

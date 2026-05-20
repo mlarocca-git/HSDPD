@@ -23,6 +23,10 @@
 #' Computes fitted values and residuals for an SDP-D model, or simulates/update
 #' a series using supplied residuals.
 #'
+#' This is a low-level estimation helper. Most users should call
+#' [fit_sdpd_model()] on a series object instead of calling this function
+#' directly.
+#'
 #' The function builds the active lambda, beta, fixed-effect, and time-effect
 #' components of the SDP-D model. It then computes fitted values in the standard
 #' case, or iteratively updates the series when residuals are supplied.

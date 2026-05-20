@@ -13,6 +13,10 @@
 #' Fits the second-stage estimator for the beta coefficients and, when included
 #' in the model, the fixed effects.
 #'
+#' This is a low-level estimation helper. Most users should call
+#' [fit_sdpd_model()] on a series object instead of calling this function
+#' directly.
+#'
 #' The function uses the dynamic spatial model components and an existing matrix
 #' of coefficient estimates to update the beta coefficients through
 #' location-specific least-squares regressions.

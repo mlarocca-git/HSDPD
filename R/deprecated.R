@@ -1,3 +1,12 @@
+#' Build an SDP-D Model Object
+#'
+#' Deprecated wrapper for [build_sdpd_model()].
+#'
+#' @param ... Arguments passed to [build_sdpd_model()].
+#'
+#' @return See [build_sdpd_model()].
+#' @seealso [build_sdpd_model()]
+#' @export
 build.sdpd.model <- function(...) {
   .Deprecated("build_sdpd_model")
   build_sdpd_model(...)
@@ -1173,7 +1182,6 @@ test.sdpd.model <- function(res.fit,
     boot_options = opts.boot
   )
 }
-
 
 
 

@@ -52,6 +52,10 @@ Computes covariance components used by the SDP-D coefficient-estimation
 routine.
 }
 \details{
+This is a low-level estimation helper. Most users should call
+\code{\link[=fit_sdpd_model]{fit_sdpd_model()}} on a series object instead of calling this function
+directly.
+
 The function builds covariance matrices between the observed series, boundary
 or neighbor-augmented series, and optional regressors. These covariance
 components are then used by \code{\link[=fit_sdpd_coefficients]{fit_sdpd_coefficients()}}.

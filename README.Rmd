@@ -20,6 +20,26 @@ knitr::opts_chunk$set(
 
 The goal of HSDPD is to ...
 
+## Public API
+
+The primary workflow is:
+
+- `build_sdpd_model()` to define an SDP-D model;
+- `build_sdpd_series()`, `read_data_from_dataframe()`, or
+  `read_data_from_raster()` to prepare data;
+- `fit_sdpd_model()` to estimate the model;
+- `test_sdpd_model()` and the `plot_sdpd_*()` functions for testing and
+  diagnostics.
+
+Advanced low-level helpers such as `fit_sdpd_covs()`,
+`fit_sdpd_coefficients()`, `fit_second_stage()`, `fit_sdpd_series()`, and
+`fit_sdpd_mean_equation_model()` remain exported for numeric workflows and
+internal pipeline compatibility. Most users should prefer `fit_sdpd_model()`.
+
+Deprecated dot-name aliases such as `build.sdpd.series()` and
+`fit.sdpd.model()` are kept for backward compatibility and forward to the
+snake_case API.
+
 ## Installation
 
 You can install the development version of HSDPD from [GitHub](https://github.com/) with:

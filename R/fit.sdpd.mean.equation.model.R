@@ -11,6 +11,10 @@
 #'
 #' Computes mean-equation summaries from fitted SDP-D values.
 #'
+#' This is a low-level estimation helper. Most users should call
+#' [fit_sdpd_model()] on a series object instead of calling this function
+#' directly.
+#'
 #' The function computes spatial-unit means over the full period, spatially
 #' lagged means using the spatial weight matrix, and optionally weighted spatial
 #' means. If time weights are supplied, it also computes summaries by time group
@@ -165,5 +169,4 @@ fit_sdpd_mean_equation_model <- function(result,
     mus_t_weighted = mus_t_weighted
   )
 }
-
 
