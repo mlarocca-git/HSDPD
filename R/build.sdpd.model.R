@@ -251,7 +251,7 @@ build_sdpd_model <- function(endogenous = "var_y",
         rep(seq(1, n_groups), each = pp %/% n_groups)
 
       group_labels <- paste("group", groups, sep = "_")
-      groups <- cbind(cod = groups, label = group_labels)
+      groups <- cbind(COD = groups, LABEL = group_labels)
       dimnames(groups)[[1]] <- seq(1, pp)
     } else {
       groups <- rr_groups

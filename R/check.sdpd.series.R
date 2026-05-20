@@ -103,6 +103,8 @@ check_sdpd_series <- function(series,
   model_obj <- model
   ww_index_temp <- NULL
   ww_values_temp <- NULL
+  nn <- NULL
+  pp <- NULL
 
   # Check validity of the series.
   if (is.list(series)) {
@@ -116,6 +118,11 @@ check_sdpd_series <- function(series,
     px_neighbors <- series$px_neighbors
     ww_index_temp <- series$ww_index
     ww_values_temp <- series$ww_values
+    nn <- series$nn
+
+    if (is.null(nn) && !is.null(series$metadata$nn)) {
+      nn <- series$metadata$nn
+    }
 
     if (is.null(xx)) {
       xx <- series$xx
@@ -127,8 +134,15 @@ check_sdpd_series <- function(series,
   if (is.matrix(data_series) || is.data.frame(data_series)) {
     data_series <- as.matrix(data_series)
 
-    nn <- dim(data_series)[2]
+    data_nn <- dim(data_series)[2]
     pp <- dim(data_series)[1]
+
+    if (is.null(nn)) {
+      nn <- data_nn
+    } else if (!identical(as.integer(nn), as.integer(data_nn))) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "The series nn value must match ncol(series)."
+    }
 
     if (is.null(dimnames(data_series)[[1]]) ||
         is.null(dimnames(data_series)[[2]])) {
@@ -163,6 +177,16 @@ check_sdpd_series <- function(series,
   } else {
     n_error <- n_error + 1
     error_vector[n_error] <- "The series is not a matrix or data frame."
+
+    if (is.null(nn)) {
+      n_error <- n_error + 1
+      error_vector[n_error] <- "The series object is missing nn and it cannot be inferred from series$series."
+      nn <- 0L
+    }
+
+    pp <- 0L
+    data_series <- matrix(numeric(0), nrow = pp, ncol = nn)
+    dimnames(data_series) <- list(character(pp), character(nn))
   }
 
   # Check validity of regressors.

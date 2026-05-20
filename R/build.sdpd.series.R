@@ -173,6 +173,16 @@ build_sdpd_series <- function(df_obj = NULL,
     return(list(error = "The rr_y and rr_xx objects have an invalid format: they must be a data frame, matrix, or raster"))
   }
 
+  if (!is.null(result$error)) {
+    return(result)
+  }
+
+  if (is.null(nn) && !is.null(result$series)) {
+    nn <- ncol(result$series)
+  }
+
+  result$nn <- nn
+
   # Diagnostics.
   if (check) {
     series_check <- check_sdpd_series(series = result, model = model)

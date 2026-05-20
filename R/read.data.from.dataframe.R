@@ -429,8 +429,16 @@ read_data_from_dataframe <- function(px,
         return(list(error = "The rr_xx argument does not contain all covariates required by the SDP-D model."))
       }
     }
-  } else if (kk > 0 && is.array(rr_xx)) {
+  } else if (kk > 0 && (is.matrix(rr_xx) || is.data.frame(rr_xx))) {
+    if (kk != 1) {
+      return(list(error = "The rr_xx argument must contain all covariates required by the SDP-D model."))
+    }
+
+    xx <- as.matrix(rr_xx)[indices, time_index, drop = FALSE]
+  } else if (kk > 0 && is.array(rr_xx) && length(dim(rr_xx)) == 3) {
     xx <- rr_xx[regressor_names, indices, , drop = FALSE]
+  } else if (kk > 0) {
+    return(list(error = "The rr_xx argument has an invalid format."))
   }
 
   # Output.
