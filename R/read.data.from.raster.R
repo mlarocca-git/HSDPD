@@ -67,6 +67,30 @@ read_data_from_raster <- function(px = NULL,
                                   model,
                                   vec_options,
                                   type_w = "distance") {
+  .raster_input_to_dataframe_components(
+    px = px,
+    lat = lat,
+    lon = lon,
+    rr_y = rr_y,
+    rr_xx = rr_xx,
+    rr_groups = rr_groups,
+    label_groups = label_groups,
+    model = model,
+    vec_options = vec_options,
+    type_w = type_w
+  )
+}
+
+.raster_input_to_dataframe_components <- function(px = NULL,
+                                                  lat = NULL,
+                                                  lon = NULL,
+                                                  rr_y,
+                                                  rr_xx = NULL,
+                                                  rr_groups = NULL,
+                                                  label_groups = NULL,
+                                                  model,
+                                                  vec_options,
+                                                  type_w = "distance") {
   # Extract and build a spatio-temporal series from raster variables.
   # The px argument is kept first so the function can be used in parallelized
   # workflows.
@@ -525,6 +549,5 @@ read_data_from_raster <- function(px = NULL,
     group = groups
   )
 }
-
 
 
