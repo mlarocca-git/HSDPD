@@ -82,7 +82,7 @@ test_that("fit_sdpd_procedure keeps the public result structure", {
 test_that("fit_sdpd_procedure returns errors and warnings for invalid input", {
   fixture <- make_fit_procedure_series_fixture()
   invalid_series <- fixture$series
-  invalid_series$px_neighbors <- NULL
+  invalid_series$px_neighbors <- list(series_boundary = NULL)
 
   expect_output(
     result <- fit_sdpd_procedure(

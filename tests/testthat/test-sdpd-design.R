@@ -163,6 +163,7 @@ test_that("sdpd_design reports invalid construction inputs", {
       series = rr_y,
       ww_index = ww_index,
       ww_values = ww_values,
+      px_neighbors = list(series_boundary = NULL),
       px = c("1", "2", "3")
     ),
     model = model

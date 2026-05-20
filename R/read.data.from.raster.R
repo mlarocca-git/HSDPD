@@ -577,7 +577,6 @@ read_data_from_raster <- function(px = NULL,
 .raster_components_are_dataframe_compatible <- function(components) {
   is.null(components$error) &&
     is.null(components$xx) &&
-    !is.null(components$px_neighbors) &&
     is.matrix(components$series) &&
     is.matrix(components$ww_index) &&
     is.matrix(components$ww_values) &&

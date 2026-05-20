@@ -368,11 +368,6 @@ check_sdpd_series <- function(series,
     names(mu) <- dimnames(data_series)[[1]]
   }
 
-  if (is.null(px_neighbors)) {
-    n_error <- n_error + 1
-    error_vector[n_error] <- "\nThe px_neighbors object is missing."
-  }
-
   # Return checked data structure.
   list(
     series = data_series,

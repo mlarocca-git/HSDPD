@@ -304,91 +304,92 @@ read_data_from_dataframe <- function(px,
   # Correct spatial-matrix and neighbor-matrix indices and weights by adding
   # boundary effects.
   if (is.null(px_neighbors)) {
-    return(list(error = "The px_neighbors matrix is required."))
-  }
+    neighbors <- NULL
+    series_boundary <- NULL
+  } else {
+    neighbor_indices_around <- unique(stats::na.omit(as.vector(
+      px_neighbors$index[as.character(px), ]
+    )))
 
-  neighbor_indices_around <- unique(stats::na.omit(as.vector(
-    px_neighbors$index[as.character(px), ]
-  )))
+    neighbors <- as.matrix(px_neighbors$index[indices, ])
 
-  neighbors <- as.matrix(px_neighbors$index[indices, ])
+    remaining_indices <- indices[!(indices %in% px)]
 
-  remaining_indices <- indices[!(indices %in% px)]
+    for (row_id in remaining_indices) {
+      present_in_px <- ww_index[row_id, ] %in% px
 
-  for (row_id in remaining_indices) {
-    present_in_px <- ww_index[row_id, ] %in% px
+      ww_index[row_id, !present_in_px] <- 0
+      ww_values[row_id, !present_in_px] <- 0
 
-    ww_index[row_id, !present_in_px] <- 0
-    ww_values[row_id, !present_in_px] <- 0
+      ww_values_sum <- sum(abs(ww_values[row_id, ]))
 
-    ww_values_sum <- sum(abs(ww_values[row_id, ]))
+      if (ww_values_sum > 0) {
+        ww_values[row_id, ] <- ww_values[row_id, ] / ww_values_sum
+      }
 
-    if (ww_values_sum > 0) {
-      ww_values[row_id, ] <- ww_values[row_id, ] / ww_values_sum
+      present_in_neighbors <- neighbors[row_id, ] %in% as.numeric(neighbor_indices_around)
+      neighbors[row_id, !present_in_neighbors] <- NA
     }
 
-    present_in_neighbors <- neighbors[row_id, ] %in% as.numeric(neighbor_indices_around)
-    neighbors[row_id, !present_in_neighbors] <- NA
+    # Derive far-neighbor boundary series.
+    neighbor_indices_around <- as.character(unique(stats::na.omit(as.vector(neighbors))))
+
+    external_indices <- neighbor_indices_around[
+      !(neighbor_indices_around %in% indices)
+    ]
+
+    residual_indices <- external_indices[
+      !(external_indices %in% dimnames(rr_y)[[1]])
+    ]
+
+    external_indices <- external_indices[
+      external_indices %in% dimnames(rr_y)[[1]]
+    ]
+
+    if (length(external_indices) > 1) {
+      series_boundary_first <- as.matrix(rr_y[as.character(external_indices), ])
+    } else if (length(external_indices) == 1) {
+      series_boundary_first <- matrix(
+        rr_y[as.character(external_indices), ],
+        nrow = 1
+      )
+
+      dimnames(series_boundary_first)[[1]] <- external_indices
+    } else {
+      series_boundary_first <- NULL
+    }
+
+    series_boundary_second <- NULL
+
+    if (length(residual_indices) > 0 &&
+        is.null(px_neighbors$series_boundary)) {
+      temp_dimnames <- dimnames(neighbors)
+
+      neighbors <- t(apply(
+        neighbors,
+        1,
+        FUN = function(x, ind) {
+          ifelse(x %in% ind, NA, x)
+        },
+        ind = as.numeric(residual_indices)
+      ))
+
+      dimnames(neighbors) <- temp_dimnames
+    } else if (length(residual_indices) > 1) {
+      series_boundary_second <- as.matrix(
+        px_neighbors$series_boundary[as.character(residual_indices), ]
+      )
+    } else if (length(residual_indices) == 1) {
+      series_boundary_second <- matrix(
+        px_neighbors$series_boundary[as.character(residual_indices), ],
+        nrow = 1
+      )
+
+      dimnames(series_boundary_second)[[1]] <- residual_indices
+    }
+
+    series_boundary <- rbind(series_boundary_first, series_boundary_second)
   }
-
-  # Derive far-neighbor boundary series.
-  neighbor_indices_around <- as.character(unique(stats::na.omit(as.vector(neighbors))))
-
-  external_indices <- neighbor_indices_around[
-    !(neighbor_indices_around %in% indices)
-  ]
-
-  residual_indices <- external_indices[
-    !(external_indices %in% dimnames(rr_y)[[1]])
-  ]
-
-  external_indices <- external_indices[
-    external_indices %in% dimnames(rr_y)[[1]]
-  ]
-
-  if (length(external_indices) > 1) {
-    series_boundary_first <- as.matrix(rr_y[as.character(external_indices), ])
-  } else if (length(external_indices) == 1) {
-    series_boundary_first <- matrix(
-      rr_y[as.character(external_indices), ],
-      nrow = 1
-    )
-
-    dimnames(series_boundary_first)[[1]] <- external_indices
-  } else {
-    series_boundary_first <- NULL
-  }
-
-  series_boundary_second <- NULL
-
-  if (length(residual_indices) > 0 &&
-      is.null(px_neighbors$series_boundary)) {
-    temp_dimnames <- dimnames(neighbors)
-
-    neighbors <- t(apply(
-      neighbors,
-      1,
-      FUN = function(x, ind) {
-        ifelse(x %in% ind, NA, x)
-      },
-      ind = as.numeric(residual_indices)
-    ))
-
-    dimnames(neighbors) <- temp_dimnames
-  } else if (length(residual_indices) > 1) {
-    series_boundary_second <- as.matrix(
-      px_neighbors$series_boundary[as.character(residual_indices), ]
-    )
-  } else if (length(residual_indices) == 1) {
-    series_boundary_second <- matrix(
-      px_neighbors$series_boundary[as.character(residual_indices), ],
-      nrow = 1
-    )
-
-    dimnames(series_boundary_second)[[1]] <- residual_indices
-  }
-
-  series_boundary <- rbind(series_boundary_first, series_boundary_second)
 
   # Create regressors.
   if (is.null(rr_xx) || sum(model$beta_coeffs) == 0) {
@@ -438,10 +439,14 @@ read_data_from_dataframe <- function(px,
     xx = xx,
     ww_index = ww_index[indices, ],
     ww_values = ww_values[indices, ],
-    px_neighbors = list(
-      index = neighbors,
-      series_boundary = series_boundary
-    ),
+    px_neighbors = if (is.null(px_neighbors)) {
+      NULL
+    } else {
+      list(
+        index = neighbors,
+        series_boundary = series_boundary
+      )
+    },
     px = px,
     lon = lon,
     lat = lat,

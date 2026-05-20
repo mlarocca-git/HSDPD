@@ -129,6 +129,87 @@ test_that("read_data_from_dataframe accepts explicit coordinate vectors", {
   expect_equal(result$lon, c("2" = 14.2, "3" = 14.3))
 })
 
+test_that("read_data_from_dataframe accepts NULL px_neighbors", {
+  rr_y <- matrix(
+    c(1, 2, 3,
+      2, 3, 4,
+      3, 4, 5),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), c("t1", "t2", "t3"))
+  )
+  ww_index <- matrix(
+    c(2, 3,
+      1, 3,
+      1, 2),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 2,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_dataframe(
+    px = c("1", "2", "3"),
+    rr_y = rr_y,
+    model = model,
+    ww_index = ww_index,
+    ww_values = ww_values,
+    px_neighbors = NULL
+  )
+
+  expect_null(result$error)
+  expect_equal(result$series, rr_y)
+  expect_equal(result$ww_index, ww_index)
+  expect_equal(result$ww_values, ww_values)
+  expect_null(result$px_neighbors)
+  expect_equal(result$px, c("1", "2", "3"))
+})
+
+test_that("check_sdpd_series accepts NULL px_neighbors", {
+  rr_y <- matrix(
+    c(1, 2, 3,
+      2, 3, 4,
+      3, 4, 5),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), c("t1", "t2", "t3"))
+  )
+  ww_index <- matrix(
+    c(2, 3,
+      1, 3,
+      1, 2),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 2,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  series <- read_data_from_dataframe(
+    px = c("1", "2", "3"),
+    rr_y = rr_y,
+    model = model,
+    ww_index = ww_index,
+    ww_values = ww_values,
+    px_neighbors = NULL
+  )
+
+  result <- check_sdpd_series(series = series, model = model)
+
+  expect_length(result$errors, 0)
+  expect_null(result$px_neighbors)
+})
+
 test_that("read_data_from_dataframe reports invalid data-frame inputs", {
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE)
   ww_index <- matrix(
