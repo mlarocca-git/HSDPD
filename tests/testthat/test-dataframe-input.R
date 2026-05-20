@@ -210,6 +210,104 @@ test_that("check_sdpd_series accepts NULL px_neighbors", {
   expect_null(result$px_neighbors)
 })
 
+test_that("read_data_from_dataframe preserves one-covariate array shape", {
+  rr_y <- matrix(
+    c(1, 2, 3,
+      2, 3, 4,
+      3, 4, 5),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), c("t1", "t2", "t3"))
+  )
+  rr_xx <- array(
+    101:109,
+    dim = c(1, 3, 3),
+    dimnames = list("x1", rownames(rr_y), colnames(rr_y))
+  )
+  ww_index <- matrix(
+    c(2, 3,
+      1, 3,
+      1, 2),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 2,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  model <- build_sdpd_model(covariates = "x1", fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_dataframe(
+    px = c("1", "2", "3"),
+    rr_y = rr_y,
+    rr_xx = rr_xx,
+    model = model,
+    ww_index = ww_index,
+    ww_values = ww_values,
+    px_neighbors = NULL
+  )
+
+  expect_null(result$error)
+  expect_true(is.array(result$xx))
+  expect_equal(dim(result$xx), c(1L, 3L, 3L))
+  expect_equal(dimnames(result$xx), dimnames(rr_xx))
+  expect_equal(result$xx, rr_xx)
+})
+
+test_that("read_data_from_dataframe preserves multi-covariate array shape", {
+  rr_y <- matrix(
+    c(1, 2, 3,
+      2, 3, 4,
+      3, 4, 5),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), c("t1", "t2", "t3"))
+  )
+  rr_xx <- array(
+    101:118,
+    dim = c(2, 3, 3),
+    dimnames = list(c("x1", "x2"), rownames(rr_y), colnames(rr_y))
+  )
+  ww_index <- matrix(
+    c(2, 3,
+      1, 3,
+      1, 2),
+    nrow = 3,
+    byrow = TRUE,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  ww_values <- matrix(
+    0.5,
+    nrow = 3,
+    ncol = 2,
+    dimnames = list(c("1", "2", "3"), NULL)
+  )
+  model <- build_sdpd_model(
+    covariates = c("x1", "x2"),
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+
+  result <- read_data_from_dataframe(
+    px = c("1", "2", "3"),
+    rr_y = rr_y,
+    rr_xx = rr_xx,
+    model = model,
+    ww_index = ww_index,
+    ww_values = ww_values,
+    px_neighbors = NULL
+  )
+
+  expect_null(result$error)
+  expect_true(is.array(result$xx))
+  expect_equal(dim(result$xx), c(2L, 3L, 3L))
+  expect_equal(dimnames(result$xx), dimnames(rr_xx))
+  expect_equal(result$xx, rr_xx)
+})
+
 test_that("read_data_from_dataframe reports invalid data-frame inputs", {
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE)
   ww_index <- matrix(

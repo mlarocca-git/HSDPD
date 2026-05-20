@@ -417,6 +417,39 @@ test_that("raster dataframe helper preserves safe component behavior", {
   expect_equal(result$px, components$px)
 })
 
+test_that("raster dataframe helper preserves one-covariate xx array", {
+  raster_input_to_dataframe_components <- getFromNamespace(
+    ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  rr_x <- make_test_spatraster(values_start = 101, varname = "x1")
+  model <- build_sdpd_model(
+    covariates = "x1",
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+  components <- raster_input_to_dataframe_components(
+    px = seq_len(9),
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  result <- raster_components_via_dataframe(components, model)
+
+  expect_null(components$error)
+  expect_true(is.array(result$xx))
+  expect_equal(dim(result$xx), dim(components$xx))
+  expect_equal(dimnames(result$xx), dimnames(components$xx))
+  expect_equal(result$xx, components$xx)
+})
+
 test_that("read_data_from_raster routes safe all-selected components through dataframe path", {
   raster_input_to_dataframe_components <- getFromNamespace(
     ".raster_input_to_dataframe_components",

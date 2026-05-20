@@ -260,13 +260,19 @@ check_sdpd_series <- function(series,
 
   if (kk > 0 && length(dim(xx)) == 3) {
     covariate_index <- dimnames(xx)[[1]] %in% covariate_names
-    xx <- xx[covariate_index, , ]
+    xx <- xx[covariate_index, , , drop = FALSE]
     kk <- dim(xx)[1]
 
     if (kk != model_obj$kk) {
       n_error <- n_error + 1
       error_vector[n_error] <- "Some covariates in the model are missing from xx."
     }
+  }
+
+  if (kk == 1 && length(dim(xx)) == 3) {
+    xx_dimnames <- dimnames(xx)
+    xx <- xx[1, , , drop = TRUE]
+    dimnames(xx) <- xx_dimnames[2:3]
   }
 
   if (kk == 1 && length(dim(xx)) == 2) {

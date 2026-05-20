@@ -430,7 +430,7 @@ read_data_from_dataframe <- function(px,
       }
     }
   } else if (kk > 0 && is.array(rr_xx)) {
-    xx <- rr_xx[regressor_names, indices, ]
+    xx <- rr_xx[regressor_names, indices, , drop = FALSE]
   }
 
   # Output.
