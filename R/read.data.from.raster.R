@@ -453,7 +453,10 @@ read_data_from_raster <- function(px = NULL,
   }
 
   if (!is.null(groups)) {
+    groups_all <- groups[indices, , drop = FALSE]
     groups <- groups[as.character(px), , drop = FALSE]
+  } else {
+    groups_all <- NULL
   }
 
   # Create index matrix for far-neighbor series.
@@ -547,7 +550,7 @@ read_data_from_raster <- function(px = NULL,
   }
 
   # Output.
-  list(
+  result <- list(
     series = series,
     xx = xx,
     ww_index = ww_index,
@@ -559,6 +562,8 @@ read_data_from_raster <- function(px = NULL,
     lat = lat,
     group = groups
   )
+  attr(result, "raster_dataframe_group") <- groups_all
+  result
 }
 
 .raster_components_to_dataframe_args <- function(components) {
@@ -576,8 +581,18 @@ read_data_from_raster <- function(px = NULL,
 }
 
 .raster_components_dataframe_groups <- function(components) {
+  dataframe_group <- attr(components, "raster_dataframe_group", exact = TRUE)
+  series_rows <- rownames(components$series)
+
+  if ((is.matrix(dataframe_group) || is.data.frame(dataframe_group)) &&
+      !is.null(series_rows) &&
+      identical(rownames(dataframe_group), series_rows) &&
+      sum(c("COD", "LABEL") %in% colnames(dataframe_group)) == 2) {
+    return(as.matrix(dataframe_group[, c("COD", "LABEL"), drop = FALSE]))
+  }
+
   if (is.null(components$group) ||
-      is.null(rownames(components$series))) {
+      is.null(series_rows)) {
     return(NULL)
   }
 
@@ -589,7 +604,6 @@ read_data_from_raster <- function(px = NULL,
   }
 
   groups <- groups[, c("COD", "LABEL"), drop = FALSE]
-  series_rows <- rownames(components$series)
 
   if (identical(rownames(groups), series_rows)) {
     return(groups)

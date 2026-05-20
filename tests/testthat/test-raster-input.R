@@ -263,9 +263,26 @@ test_that("read_data_from_raster characterizes all-selected custom groups", {
 })
 
 test_that("read_data_from_raster characterizes subset custom groups", {
+  raster_input_to_dataframe_components <- getFromNamespace(
+    ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
+    "HSDPD"
+  )
   rr_y <- make_test_spatraster()
   rr_groups <- make_test_group_spatraster(rr_y)
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- raster_input_to_dataframe_components(
+    px = 5,
+    rr_y = rr_y,
+    rr_groups = rr_groups,
+    label_groups = c("1" = "north", "2" = "south"),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+  expected <- raster_components_via_dataframe(components, model)
 
   result <- read_data_from_raster(
     px = 5,
@@ -277,21 +294,12 @@ test_that("read_data_from_raster characterizes subset custom groups", {
   )
 
   expect_null(result$error)
-  expect_named(
-    result,
-    c(
-      "series",
-      "xx",
-      "ww_index",
-      "ww_values",
-      "px_neighbors",
-      "na_summary",
-      "px",
-      "lon",
-      "lat",
-      "group"
-    )
-  )
+  expect_named(result, names(expected))
+  expect_false("raster_dataframe_group" %in% names(result))
+  expect_equal(result$series, expected$series)
+  expect_equal(result$ww_index, expected$ww_index)
+  expect_equal(result$ww_values, expected$ww_values)
+  expect_equal(result$na_summary, components$na_summary)
   expect_equal(result$px, 5)
   expect_equal(names(result$lat), "5")
   expect_equal(names(result$lon), "5")
@@ -303,12 +311,29 @@ test_that("read_data_from_raster characterizes subset custom groups", {
 })
 
 test_that("read_data_from_raster characterizes partial group labels", {
+  raster_input_to_dataframe_components <- getFromNamespace(
+    ".raster_input_to_dataframe_components",
+    "HSDPD"
+  )
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
+    "HSDPD"
+  )
   rr_y <- make_test_spatraster()
   rr_groups <- make_test_group_spatraster(rr_y)
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- raster_input_to_dataframe_components(
+    px = 5,
+    rr_y = rr_y,
+    rr_groups = rr_groups,
+    label_groups = c("1" = "north"),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+  expected <- raster_components_via_dataframe(components, model)
 
   result <- read_data_from_raster(
-    px = seq_len(9),
+    px = 5,
     rr_y = rr_y,
     rr_groups = rr_groups,
     label_groups = c("1" = "north"),
@@ -317,12 +342,15 @@ test_that("read_data_from_raster characterizes partial group labels", {
   )
 
   expect_null(result$error)
+  expect_named(result, names(expected))
+  expect_equal(result$series, expected$series)
+  expect_equal(result$ww_index, expected$ww_index)
+  expect_equal(result$ww_values, expected$ww_values)
+  expect_equal(result$px, 5)
+  expect_equal(rownames(result$group), "5")
   expect_true(all(c("COD", "LABEL") %in% colnames(result$group)))
-  expect_equal(as.integer(result$group[, "COD"]), c(1, 1, 2, 1, 2, 2, 1, 2, 1))
-  expect_equal(
-    as.character(result$group[, "LABEL"]),
-    c("north", "north", NA, "north", NA, NA, "north", NA, "north")
-  )
+  expect_equal(as.integer(result$group[, "COD"]), 2L)
+  expect_true(is.na(result$group[, "LABEL"]))
 })
 
 test_that("raster components bridge prepares no-covariate dataframe args", {
