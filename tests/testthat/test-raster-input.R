@@ -22,6 +22,13 @@ make_raster_vec_options_with_neighbors <- function() {
   list(px_core = 1, px_neighbors = 1, na_rm = TRUE)
 }
 
+make_test_group_spatraster <- function(rr_y = make_test_spatraster()) {
+  rr_groups <- terra::rast(rr_y, nlyrs = 1)
+  terra::values(rr_groups) <- c(1, 1, 2, 1, 2, 2, 1, 2, 1)
+  terra::varnames(rr_groups) <- "group"
+  rr_groups
+}
+
 test_that("read_data_from_raster returns expected top-level fields", {
   rr_y <- make_test_spatraster()
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
@@ -213,6 +220,109 @@ test_that("read_data_from_raster handles subset px with far neighbors", {
   expect_equal(names(result$lat), "5")
   expect_equal(names(result$lon), "5")
   expect_equal(rownames(result$group), "5")
+})
+
+test_that("read_data_from_raster characterizes all-selected custom groups", {
+  rr_y <- make_test_spatraster()
+  rr_groups <- make_test_group_spatraster(rr_y)
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = seq_len(9),
+    rr_y = rr_y,
+    rr_groups = rr_groups,
+    label_groups = c("1" = "north", "2" = "south"),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_named(
+    result,
+    c(
+      "series",
+      "xx",
+      "ww_index",
+      "ww_values",
+      "px_neighbors",
+      "na_summary",
+      "px",
+      "lon",
+      "lat",
+      "group"
+    )
+  )
+  expect_true(all(c("COD", "LABEL") %in% colnames(result$group)))
+  expect_equal(rownames(result$group), rownames(result$series))
+  expect_equal(as.integer(result$group[, "COD"]), c(1, 1, 2, 1, 2, 2, 1, 2, 1))
+  expect_equal(
+    as.character(result$group[, "LABEL"]),
+    c("north", "north", "south", "north", "south", "south", "north", "south", "north")
+  )
+  expect_s3_class(result$na_summary, "data.frame")
+})
+
+test_that("read_data_from_raster characterizes subset custom groups", {
+  rr_y <- make_test_spatraster()
+  rr_groups <- make_test_group_spatraster(rr_y)
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    rr_groups = rr_groups,
+    label_groups = c("1" = "north", "2" = "south"),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_named(
+    result,
+    c(
+      "series",
+      "xx",
+      "ww_index",
+      "ww_values",
+      "px_neighbors",
+      "na_summary",
+      "px",
+      "lon",
+      "lat",
+      "group"
+    )
+  )
+  expect_equal(result$px, 5)
+  expect_equal(names(result$lat), "5")
+  expect_equal(names(result$lon), "5")
+  expect_equal(rownames(result$group), "5")
+  expect_true(all(c("COD", "LABEL") %in% colnames(result$group)))
+  expect_equal(as.integer(result$group[, "COD"]), 2L)
+  expect_equal(as.character(result$group[, "LABEL"]), "south")
+  expect_s3_class(result$na_summary, "data.frame")
+})
+
+test_that("read_data_from_raster characterizes partial group labels", {
+  rr_y <- make_test_spatraster()
+  rr_groups <- make_test_group_spatraster(rr_y)
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- read_data_from_raster(
+    px = seq_len(9),
+    rr_y = rr_y,
+    rr_groups = rr_groups,
+    label_groups = c("1" = "north"),
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_true(all(c("COD", "LABEL") %in% colnames(result$group)))
+  expect_equal(as.integer(result$group[, "COD"]), c(1, 1, 2, 1, 2, 2, 1, 2, 1))
+  expect_equal(
+    as.character(result$group[, "LABEL"]),
+    c("north", "north", NA, "north", NA, NA, "north", NA, "north")
+  )
 })
 
 test_that("raster components bridge prepares no-covariate dataframe args", {
