@@ -10,7 +10,9 @@ test_that("primary workflow functions remain exported", {
         "read_data_from_raster",
         "fit_sdpd_model",
         "test_sdpd_model",
-        "plot_sdpd_residuals_stat"
+        "plot_sdpd_residuals_stat",
+        "increment_partial_sum",
+        "summarise_sdpd_simulation"
       ),
       exports
     ),
@@ -21,7 +23,9 @@ test_that("primary workflow functions remain exported", {
       "read_data_from_raster",
       "fit_sdpd_model",
       "test_sdpd_model",
-      "plot_sdpd_residuals_stat"
+      "plot_sdpd_residuals_stat",
+      "increment_partial_sum",
+      "summarise_sdpd_simulation"
     )
   )
 })
