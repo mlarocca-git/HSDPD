@@ -249,3 +249,23 @@ test_that("raster components bridge preserves NULL px_neighbors blocker", {
   expect_null(components$px_neighbors)
   expect_null(args$px_neighbors)
 })
+
+test_that("build_sdpd_series forwards explicit px for SpatRaster input", {
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+
+  result <- build_sdpd_series(
+    df_obj = list(px = 1),
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    check = FALSE,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(result$error)
+  expect_equal(result$px, 5)
+  expect_equal(names(result$lat), "5")
+  expect_equal(names(result$lon), "5")
+  expect_true("5" %in% rownames(result$series))
+})

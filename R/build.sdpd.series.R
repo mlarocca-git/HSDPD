@@ -159,7 +159,7 @@ build_sdpd_series <- function(df_obj = NULL,
     )
   } else if (inherits(rr_y, "SpatRaster")) {
     result <- read_data_from_raster(
-      px = df_obj$px,
+      px = px,
       rr_y = rr_y,
       rr_xx = rr_xx,
       lon = lon,
@@ -190,4 +190,3 @@ build_sdpd_series <- function(df_obj = NULL,
   # Output.
   result
 }
-
