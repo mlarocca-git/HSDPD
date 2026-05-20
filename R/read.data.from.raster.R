@@ -564,3 +564,36 @@ read_data_from_raster <- function(px = NULL,
   )
 }
 
+.raster_components_are_dataframe_compatible <- function(components) {
+  is.null(components$error) &&
+    is.null(components$xx) &&
+    !is.null(components$px_neighbors) &&
+    is.matrix(components$series) &&
+    is.matrix(components$ww_index) &&
+    is.matrix(components$ww_values) &&
+    identical(as.character(components$px), rownames(components$series)) &&
+    !is.null(components$group) &&
+    identical(rownames(components$group), rownames(components$series))
+}
+
+.raster_components_via_dataframe <- function(components, model) {
+  args <- .raster_components_to_dataframe_args(components)
+  result <- do.call(read_data_from_dataframe, c(args, list(model = model)))
+
+  if (!is.null(result$error)) {
+    return(components)
+  }
+
+  list(
+    series = result$series,
+    xx = result$xx,
+    ww_index = result$ww_index,
+    ww_values = result$ww_values,
+    px_neighbors = result$px_neighbors,
+    na_summary = components$na_summary,
+    px = components$px,
+    lon = components$lon,
+    lat = components$lat,
+    group = result$group
+  )
+}

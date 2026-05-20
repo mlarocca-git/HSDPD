@@ -18,6 +18,10 @@ make_raster_vec_options <- function() {
   list(px_core = 1, px_neighbors = 0, na_rm = TRUE)
 }
 
+make_raster_vec_options_with_neighbors <- function() {
+  list(px_core = 1, px_neighbors = 1, na_rm = TRUE)
+}
+
 test_that("read_data_from_raster returns expected top-level fields", {
   rr_y <- make_test_spatraster()
   model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
@@ -268,4 +272,128 @@ test_that("build_sdpd_series forwards explicit px for SpatRaster input", {
   expect_equal(names(result$lat), "5")
   expect_equal(names(result$lon), "5")
   expect_true("5" %in% rownames(result$series))
+})
+
+test_that("raster dataframe compatibility is TRUE for safe all-selected components", {
+  raster_components_are_dataframe_compatible <- getFromNamespace(
+    ".raster_components_are_dataframe_compatible",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- read_data_from_raster(
+    px = seq_len(9),
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options_with_neighbors()
+  )
+
+  expect_null(components$error)
+  expect_true(raster_components_are_dataframe_compatible(components))
+})
+
+test_that("raster dataframe compatibility is FALSE with NULL px_neighbors", {
+  raster_components_are_dataframe_compatible <- getFromNamespace(
+    ".raster_components_are_dataframe_compatible",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+
+  expect_null(components$error)
+  expect_null(components$px_neighbors)
+  expect_false(raster_components_are_dataframe_compatible(components))
+})
+
+test_that("raster dataframe compatibility is FALSE for subset px group mismatch", {
+  raster_components_are_dataframe_compatible <- getFromNamespace(
+    ".raster_components_are_dataframe_compatible",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- read_data_from_raster(
+    px = 5,
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options()
+  )
+  components$px_neighbors <- list(index = components$ww_index)
+
+  expect_null(components$error)
+  expect_false(
+    identical(rownames(components$group), rownames(components$series))
+  )
+  expect_false(raster_components_are_dataframe_compatible(components))
+})
+
+test_that("raster dataframe compatibility is FALSE for covariate components", {
+  raster_components_are_dataframe_compatible <- getFromNamespace(
+    ".raster_components_are_dataframe_compatible",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  rr_x <- make_test_spatraster(values_start = 101, varname = "x1")
+  model <- build_sdpd_model(
+    covariates = "x1",
+    fixed_effects = FALSE,
+    check = FALSE
+  )
+  components <- read_data_from_raster(
+    px = seq_len(9),
+    rr_y = rr_y,
+    rr_xx = list(x1 = rr_x),
+    model = model,
+    vec_options = make_raster_vec_options_with_neighbors()
+  )
+
+  expect_null(components$error)
+  expect_true(is.array(components$xx))
+  expect_false(raster_components_are_dataframe_compatible(components))
+})
+
+test_that("raster dataframe helper preserves safe component behavior", {
+  raster_components_via_dataframe <- getFromNamespace(
+    ".raster_components_via_dataframe",
+    "HSDPD"
+  )
+  rr_y <- make_test_spatraster()
+  model <- build_sdpd_model(covariates = 0, fixed_effects = FALSE, check = FALSE)
+  components <- read_data_from_raster(
+    px = seq_len(9),
+    rr_y = rr_y,
+    model = model,
+    vec_options = make_raster_vec_options_with_neighbors()
+  )
+
+  result <- raster_components_via_dataframe(components, model)
+
+  expect_null(components$error)
+  expect_named(
+    result,
+    c(
+      "series",
+      "xx",
+      "ww_index",
+      "ww_values",
+      "px_neighbors",
+      "na_summary",
+      "px",
+      "lon",
+      "lat",
+      "group"
+    )
+  )
+  expect_equal(result$series, components$series)
+  expect_equal(result$group, components$group)
+  expect_equal(result$ww_index, components$ww_index)
+  expect_equal(result$ww_values, components$ww_values)
+  expect_equal(result$na_summary, components$na_summary)
+  expect_equal(result$px, components$px)
 })
